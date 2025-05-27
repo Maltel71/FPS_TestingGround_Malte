@@ -192,6 +192,13 @@ public class WeaponShooting : MonoBehaviour
         // Perform raycast
         if (Physics.Raycast(ray, out hit, range, shootableLayers))
         {
+            // Check for BreakableCube and apply damage
+            BreakableCube breakable = hit.collider.GetComponent<BreakableCube>();
+            if (breakable != null)
+            {
+                breakable.TakeDamage(breakable.damagePerShot);
+            }
+
             // Check if hit object has a rigidbody to apply force
             Rigidbody rb = hit.collider.GetComponent<Rigidbody>();
             if (rb != null && !rb.isKinematic)
