@@ -142,9 +142,9 @@ GameObject:
   - component: {fileID: 976874710353587850}
   - component: {fileID: 6275335326211570284}
   - component: {fileID: 7142748764861756068}
-  - component: {fileID: 3250681193637423644}
+  - component: {fileID: 8686175479259954281}
   m_Layer: 0
-  m_Name: MissileProjectile_Prefab
+  m_Name: MissileEnemyProjectile_Prefab 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -232,12 +232,12 @@ CapsuleCollider:
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4294967295
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -257,11 +257,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dfc6589e731d1bf4ead1c4d3db59b4ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 10
+  speed: 20
   turnSpeed: 5
-  damage: 10
-  lifetime: 5
---- !u!54 &3250681193637423644
+  damage: 25
+  lifetime: 10
+--- !u!54 &8686175479259954281
 Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -269,7 +269,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3122018244582433022}
   serializedVersion: 4
-  m_Mass: 5
+  m_Mass: 1
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}

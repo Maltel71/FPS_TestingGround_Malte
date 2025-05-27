@@ -11944,7 +11944,7 @@ GameObject:
   m_Component:
   - component: {fileID: 229462137}
   - component: {fileID: 229462136}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DetecctionCollider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -22147,7 +22147,7 @@ GameObject:
   - component: {fileID: 420803767}
   - component: {fileID: 420803766}
   - component: {fileID: 420803765}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Arm
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -68783,7 +68783,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1218434354}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: GunPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -68799,7 +68799,7 @@ Transform:
   m_GameObject: {fileID: 1218434353}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 1.063}
+  m_LocalPosition: {x: 0, y: 0, z: 2.86}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -84761,7 +84761,7 @@ GameObject:
   - component: {fileID: 1555537214}
   - component: {fileID: 1555537213}
   - component: {fileID: 1555537212}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Nose
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -90177,7 +90177,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1658160940}
   - component: {fileID: 1658160941}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: PivotTransform
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -90208,7 +90208,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1658160939}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4ed9dc9355447c42a83ca254148455c, type: 3}
   m_Name: 
@@ -90218,7 +90218,7 @@ MonoBehaviour:
   damage: 10
   shootLayerMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 1
   gunPoint: {fileID: 1218434354}
   armPivot: {fileID: 1658160940}
   aimSpeed: 5
@@ -101762,12 +101762,13 @@ GameObject:
   - component: {fileID: 1881712830}
   - component: {fileID: 1881712829}
   - component: {fileID: 1881712828}
-  - component: {fileID: 1881712827}
   - component: {fileID: 1881712826}
+  - component: {fileID: 1881712827}
   - component: {fileID: 1881712832}
-  m_Layer: 0
+  - component: {fileID: 1881712833}
+  m_Layer: 8
   m_Name: EnemyDude_01
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -101780,7 +101781,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1881712825}
   serializedVersion: 4
-  m_Mass: 1
+  m_Mass: 10
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -101806,7 +101807,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1881712825}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 808747218f6d9e649b265c149a0a3e02, type: 3}
   m_Name: 
@@ -101920,7 +101921,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1881712825}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 06f84f3e67001ed478eb1f8d564cbe95, type: 3}
   m_Name: 
@@ -101932,6 +101933,29 @@ MonoBehaviour:
   playerTag: Player
   enemyController: {fileID: 1881712827}
   enemyShooting: {fileID: 1658160941}
+--- !u!114 &1881712833
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1881712825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 227443613f03a994fa684ecbf23bb4df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  waypoints:
+  - {fileID: 732095849}
+  - {fileID: 1891718843}
+  - {fileID: 1077813548}
+  moveSpeed: 3
+  stoppingDistance: 0.5
+  detectionRange: 40
+  fireRate: 1
+  homingMissilePrefab: {fileID: 3122018244582433022, guid: 04d4a428c4c06ab41afe605f120af5f1, type: 3}
+  firePoint: {fileID: 1218434354}
+  rotationSpeed: 5
 --- !u!1 &1881719993
 GameObject:
   m_ObjectHideFlags: 0
