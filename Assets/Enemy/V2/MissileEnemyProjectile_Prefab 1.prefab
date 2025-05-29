@@ -261,6 +261,13 @@ MonoBehaviour:
   turnSpeed: 5
   damage: 25
   lifetime: 10
+  explosionRadius: 5
+  explosionForce: 20
+  upwardModifier: 1
+  affectedLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  explosionEffectPrefab: {fileID: 3297252160097050156, guid: f3d1eb082b91c6f4b8ad12ceeac6a6f9, type: 3}
 --- !u!54 &8686175479259954281
 Rigidbody:
   m_ObjectHideFlags: 0
