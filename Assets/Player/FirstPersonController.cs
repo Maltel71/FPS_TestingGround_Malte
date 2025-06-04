@@ -6,8 +6,13 @@ public class FirstPersonController : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float sprintSpeed = 8f;
+    [SerializeField] private float crouchSpeed = 2f;
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float gravity = -9.81f;
+
+    [Header("Crouch Settings")]
+    [SerializeField] private float crouchHeight = 1.2f;
+    [SerializeField] private float crouchTransitionSpeed = 10f;
 
     [Header("Look Settings")]
     [SerializeField] private float mouseSensitivity = 2f;
@@ -19,6 +24,9 @@ public class FirstPersonController : MonoBehaviour
     private float xRotation = 0f;
     private bool isGrounded;
     private bool isSprinting;
+    private bool isCrouching;
+    private float standingHeight;
+    private Vector3 standingCameraPos;
 
     private void Awake()
     {
@@ -32,6 +40,10 @@ public class FirstPersonController : MonoBehaviour
             else
                 Debug.LogError("No camera assigned to FirstPersonController and none found in children.");
         }
+
+        // Store original values
+        standingHeight = controller.height;
+        standingCameraPos = cameraTransform.localPosition;
 
         if (lockCursor)
         {
@@ -48,6 +60,7 @@ public class FirstPersonController : MonoBehaviour
             playerVelocity.y = -0.5f;
         }
 
+        HandleCrouch();
         HandleSprint();
         HandleMovement();
         HandleLook();
@@ -55,9 +68,28 @@ public class FirstPersonController : MonoBehaviour
         ApplyGravity();
     }
 
+    private void HandleCrouch()
+    {
+        bool wantsToCrouch = Input.GetKey(KeyCode.LeftControl);
+
+        if (wantsToCrouch != isCrouching)
+        {
+            isCrouching = wantsToCrouch;
+        }
+
+        float targetHeight = isCrouching ? crouchHeight : standingHeight;
+        float targetCameraY = isCrouching ? standingCameraPos.y - (standingHeight - crouchHeight) * 0.5f : standingCameraPos.y;
+
+        controller.height = Mathf.Lerp(controller.height, targetHeight, crouchTransitionSpeed * Time.deltaTime);
+
+        Vector3 newCameraPos = cameraTransform.localPosition;
+        newCameraPos.y = Mathf.Lerp(newCameraPos.y, targetCameraY, crouchTransitionSpeed * Time.deltaTime);
+        cameraTransform.localPosition = newCameraPos;
+    }
+
     private void HandleSprint()
     {
-        isSprinting = Input.GetKey(KeyCode.LeftShift);
+        isSprinting = Input.GetKey(KeyCode.LeftShift) && !isCrouching;
     }
 
     private void HandleMovement()
@@ -66,7 +98,7 @@ public class FirstPersonController : MonoBehaviour
         float z = Input.GetAxis("Vertical");
 
         Vector3 move = transform.right * x + transform.forward * z;
-        float currentSpeed = isSprinting ? sprintSpeed : moveSpeed;
+        float currentSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : moveSpeed);
         controller.Move(move * currentSpeed * Time.deltaTime);
     }
 
@@ -84,7 +116,7 @@ public class FirstPersonController : MonoBehaviour
 
     private void HandleJump()
     {
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        if (Input.GetButtonDown("Jump") && isGrounded && !isCrouching)
         {
             playerVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
         }
