@@ -13,6 +13,11 @@ public class WeaponShooting : MonoBehaviour
     [SerializeField] private KeyCode toggleModeKey = KeyCode.T;
     [SerializeField] private LayerMask shootableLayers;
 
+    [Header("Ammo Settings")]
+    [SerializeField] private int maxAmmoPerMag = 30;
+    [SerializeField] private float reloadTime = 3f;
+    [SerializeField] private KeyCode reloadKey = KeyCode.R;
+
     [Header("Accuracy Settings")]
     [SerializeField] private float maxInaccuracy = 5f;
     [SerializeField] private float inaccuracyPerShot = 0.5f;
@@ -32,6 +37,8 @@ public class WeaponShooting : MonoBehaviour
     [SerializeField] private ParticleSystem bulletCasings; // Added bullet casing particle system
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip shootSound;
+    [SerializeField] private AudioClip emptySound;
+    [SerializeField] private AudioClip reloadSound;
     [SerializeField] private Camera playerCamera;
 
     [Header("Audio Settings")]
@@ -56,9 +63,14 @@ public class WeaponShooting : MonoBehaviour
     private bool isFullAuto = false;
     private float currentInaccuracy = 0f;
     private float lastShotTime = 0f;
+    private int currentAmmo;
+    private bool isReloading = false;
 
     private void Awake()
     {
+        // Initialize ammo
+        currentAmmo = maxAmmoPerMag;
+
         // Auto-find camera if not assigned
         if (playerCamera == null)
             playerCamera = Camera.main;
@@ -84,6 +96,15 @@ public class WeaponShooting : MonoBehaviour
 
     private void Update()
     {
+        // Handle reload input
+        if (Input.GetKeyDown(reloadKey) && !isReloading && currentAmmo < maxAmmoPerMag)
+        {
+            StartCoroutine(ReloadCoroutine());
+        }
+
+        // Don't allow shooting while reloading
+        if (isReloading) return;
+
         // Toggle firing mode
         if (Input.GetKeyDown(toggleModeKey))
         {
@@ -96,8 +117,19 @@ public class WeaponShooting : MonoBehaviour
 
         if (shouldShoot && Time.time >= nextFireTime)
         {
-            Shoot();
-            nextFireTime = Time.time + currentFireRate;
+            if (currentAmmo > 0)
+            {
+                Shoot();
+                nextFireTime = Time.time + currentFireRate;
+            }
+            else
+            {
+                // Play empty sound
+                if (audioSource != null && emptySound != null)
+                {
+                    audioSource.PlayOneShot(emptySound);
+                }
+            }
         }
 
         // Handle accuracy recovery
@@ -125,6 +157,9 @@ public class WeaponShooting : MonoBehaviour
 
     private void Shoot()
     {
+        // Consume ammo
+        currentAmmo--;
+
         // Update shot time and increase inaccuracy
         lastShotTime = Time.time;
         currentInaccuracy = Mathf.Min(currentInaccuracy + inaccuracyPerShot, maxInaccuracy);
@@ -219,6 +254,24 @@ public class WeaponShooting : MonoBehaviour
         }
     }
 
+    private IEnumerator ReloadCoroutine()
+    {
+        isReloading = true;
+
+        // Play reload sound
+        if (audioSource != null && reloadSound != null)
+        {
+            audioSource.PlayOneShot(reloadSound);
+        }
+
+        // Wait for reload time
+        yield return new WaitForSeconds(reloadTime);
+
+        // Refill ammo
+        currentAmmo = maxAmmoPerMag;
+        isReloading = false;
+    }
+
     private IEnumerator MuzzleFlashLightCoroutine()
     {
         // Enable the light
@@ -230,4 +283,9 @@ public class WeaponShooting : MonoBehaviour
         // Disable the light
         muzzleFlashLight.enabled = false;
     }
+
+    // Public methods for UI or other systems to access ammo info
+    public int GetCurrentAmmo() => currentAmmo;
+    public int GetMaxAmmo() => maxAmmoPerMag;
+    public bool IsReloading() => isReloading;
 }
