@@ -54,8 +54,7 @@ public class NetworkFirstPersonController : NetworkBehaviour
             if (cameraTransform != null)
                 cameraTransform.gameObject.SetActive(false);
 
-            // Disable the CharacterController for non-owners to avoid conflicts
-            controller.enabled = false;
+            // Keep CharacterController enabled for ClientNetworkTransform to work
             return;
         }
 
