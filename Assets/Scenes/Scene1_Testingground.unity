@@ -8632,6 +8632,8 @@ MonoBehaviour:
   target: {fileID: 0}
   spawnInterval: 5
   autoSpawn: 1
+  spawnPoint: {fileID: 0}
+  nextSpawnTime: 0
 --- !u!65 &167480602
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -92253,7 +92255,6 @@ MonoBehaviour:
   shootingRange: 15
   damage: 10
   shootLayerMask:
-    serializedVersion: 2
     m_Bits: 1
   gunPoint: {fileID: 1218434354}
   armPivot: {fileID: 1658160940}
@@ -92262,6 +92263,10 @@ MonoBehaviour:
   muzzleFlashPrefab: {fileID: 3157180370780321115, guid: c4abcfc156ed28c489e704b01fbb2814, type: 3}
   muzzleFlashDuration: 0.1
   showDebugRays: 1
+  target: {fileID: 0}
+  nextFireTime: 0
+  audioSource: {fileID: 0}
+  isShooting: 0
 --- !u!1 &1659293203
 GameObject:
   m_ObjectHideFlags: 0
@@ -103731,6 +103736,9 @@ MonoBehaviour:
   stoppingDistance: 0.5
   maxSpeed: 5
   rotationSpeed: 5
+  rb: {fileID: 0}
+  currentWaypointIndex: 0
+  targetPosition: {x: 0, y: 0, z: 0}
 --- !u!136 &1881712828
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -103841,11 +103849,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   detectionCollider: {fileID: 229462136}
   playerLayerMask:
-    serializedVersion: 2
     m_Bits: 129
   playerTag: Player
   enemyController: {fileID: 1881712827}
   enemyShooting: {fileID: 1658160941}
+  detectedPlayer: {fileID: 0}
+  playerInRange: 0
 --- !u!114 &1881712833
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -103869,6 +103878,12 @@ MonoBehaviour:
   homingMissilePrefab: {fileID: 3122018244582433022, guid: 04d4a428c4c06ab41afe605f120af5f1, type: 3}
   firePoint: {fileID: 1218434354}
   rotationSpeed: 5
+  rb: {fileID: 0}
+  player: {fileID: 0}
+  currentWaypointIndex: 0
+  targetPosition: {x: 0, y: 0, z: 0}
+  nextFireTime: 0
+  playerDetected: 0
 --- !u!1 &1881719993
 GameObject:
   m_ObjectHideFlags: 0
