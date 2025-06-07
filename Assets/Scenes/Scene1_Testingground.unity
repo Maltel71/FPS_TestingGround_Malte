@@ -8628,12 +8628,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdff327a4905d364bbe6fc1040c98f8f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  missileProjectilePrefab: {fileID: 3122018244582433022, guid: 87a93bcd7ac41cf42bcc17d8b49eeae9, type: 3}
-  target: {fileID: 0}
-  spawnInterval: 5
-  autoSpawn: 1
-  spawnPoint: {fileID: 0}
-  nextSpawnTime: 0
 --- !u!65 &167480602
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -44442,6 +44436,7 @@ Transform:
   - {fileID: 2139430126}
   - {fileID: 709742677}
   - {fileID: 392750369}
+  - {fileID: 1512840687}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &776184878
@@ -54013,7 +54008,7 @@ MonoBehaviour:
   m_MaxConnectAttempts: 60
   m_DisconnectTimeoutMS: 30000
   ConnectionData:
-    Address: 127.0.0.1
+    Address: 192.168.1.3
     Port: 7777
     ServerListenAddress: 127.0.0.1
   DebugSimulator:
@@ -58481,6 +58476,9 @@ GameObject:
   - component: {fileID: 1011087456}
   - component: {fileID: 1011087455}
   - component: {fileID: 1011087454}
+  - component: {fileID: 1011087459}
+  - component: {fileID: 1011087461}
+  - component: {fileID: 1011087460}
   m_Layer: 0
   m_Name: Cube (10)
   m_TagString: Untagged
@@ -58604,6 +58602,94 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1011087452}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1011087459
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1011087452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  GlobalObjectIdHash: 3444500066
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!114 &1011087460
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1011087452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkRigidbodyBaseExpanded: 0
+  UseRigidBodyForMotion: 0
+  AutoUpdateKinematicState: 1
+  AutoSetKinematicOnDespawn: 1
+--- !u!114 &1011087461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1011087452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkTransformExpanded: 0
+  AutoOwnerAuthorityTickOffset: 1
+  PositionInterpolationType: 0
+  RotationInterpolationType: 0
+  ScaleInterpolationType: 0
+  PositionLerpSmoothing: 1
+  PositionMaxInterpolationTime: 0.1
+  RotationLerpSmoothing: 1
+  RotationMaxInterpolationTime: 0.1
+  ScaleLerpSmoothing: 1
+  ScaleMaxInterpolationTime: 0.1
+  AuthorityMode: 0
+  TickSyncChildren: 0
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 1
+  SyncScaleY: 1
+  SyncScaleZ: 1
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  SwitchTransformSpaceWhenParented: 0
+  Interpolate: 1
+  SlerpPosition: 0
 --- !u!1 &1013087615
 GameObject:
   m_ObjectHideFlags: 0
@@ -84967,7 +85053,7 @@ Transform:
   m_GameObject: {fileID: 1512840686}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.910021, y: 3.2319715, z: 0.76834816}
+  m_LocalPosition: {x: 1.7446285, y: -1.1153038, z: -5.4870696}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -85016,7 +85102,7 @@ Transform:
   - {fileID: 1372497299}
   - {fileID: 570069419}
   - {fileID: 2083613677}
-  m_Father: {fileID: 1913716300}
+  m_Father: {fileID: 770581234}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1519688406
 GameObject:
@@ -92251,22 +92337,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4ed9dc9355447c42a83ca254148455c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  fireRate: 1
-  shootingRange: 15
-  damage: 10
-  shootLayerMask:
-    m_Bits: 1
-  gunPoint: {fileID: 1218434354}
-  armPivot: {fileID: 1658160940}
-  aimSpeed: 5
-  shootSound: {fileID: 8300000, guid: 41fd0924159a1d24e827b8f13c337574, type: 3}
-  muzzleFlashPrefab: {fileID: 3157180370780321115, guid: c4abcfc156ed28c489e704b01fbb2814, type: 3}
-  muzzleFlashDuration: 0.1
-  showDebugRays: 1
-  target: {fileID: 0}
-  nextFireTime: 0
-  audioSource: {fileID: 0}
-  isShooting: 0
 --- !u!1 &1659293203
 GameObject:
   m_ObjectHideFlags: 0
@@ -103728,17 +103798,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 808747218f6d9e649b265c149a0a3e02, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  waypoints:
-  - {fileID: 732095849}
-  - {fileID: 1891718843}
-  - {fileID: 1077813548}
-  moveSpeed: 3
-  stoppingDistance: 0.5
-  maxSpeed: 5
-  rotationSpeed: 5
-  rb: {fileID: 0}
-  currentWaypointIndex: 0
-  targetPosition: {x: 0, y: 0, z: 0}
 --- !u!136 &1881712828
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -103847,14 +103906,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06f84f3e67001ed478eb1f8d564cbe95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectionCollider: {fileID: 229462136}
-  playerLayerMask:
-    m_Bits: 129
-  playerTag: Player
-  enemyController: {fileID: 1881712827}
-  enemyShooting: {fileID: 1658160941}
-  detectedPlayer: {fileID: 0}
-  playerInRange: 0
 --- !u!114 &1881712833
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -103867,23 +103918,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 227443613f03a994fa684ecbf23bb4df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  waypoints:
-  - {fileID: 732095849}
-  - {fileID: 1891718843}
-  - {fileID: 1077813548}
-  moveSpeed: 9
-  stoppingDistance: 0.5
-  detectionRange: 10
-  fireRate: 1
-  homingMissilePrefab: {fileID: 3122018244582433022, guid: 04d4a428c4c06ab41afe605f120af5f1, type: 3}
-  firePoint: {fileID: 1218434354}
-  rotationSpeed: 5
-  rb: {fileID: 0}
-  player: {fileID: 0}
-  currentWaypointIndex: 0
-  targetPosition: {x: 0, y: 0, z: 0}
-  nextFireTime: 0
-  playerDetected: 0
 --- !u!1 &1881719993
 GameObject:
   m_ObjectHideFlags: 0
@@ -105719,7 +105753,6 @@ Transform:
   m_Children:
   - {fileID: 377101984}
   - {fileID: 617414270}
-  - {fileID: 1512840687}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1913769987

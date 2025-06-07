@@ -225,13 +225,9 @@ public class NetworkWeaponShooting : NetworkBehaviour
                 breakable.TakeDamage(breakable.damagePerShot);
             }
 
-            // Apply physics force
-            Rigidbody rb = hit.collider.GetComponent<Rigidbody>();
-            if (rb != null && !rb.isKinematic)
-            {
-                Vector3 forceDirection = hit.point - rayOrigin;
-                rb.AddForceAtPosition(forceDirection.normalized * shootForce, hit.point, ForceMode.Impulse);
-            }
+            // Apply physics force to all clients using ClientRpc
+            ApplyPhysicsForceClientRpc(hit.collider.GetComponent<NetworkObject>().NetworkObjectId,
+                                     rayOrigin, hit.point, shootForce);
 
             // Tell all clients to show impact effects
             ShowImpactEffectsClientRpc(hit.point, hit.normal);
@@ -244,6 +240,22 @@ public class NetworkWeaponShooting : NetworkBehaviour
         if (networkCurrentAmmo.Value == 0)
         {
             PlayEmptySoundClientRpc();
+        }
+    }
+
+    [ClientRpc]
+    private void ApplyPhysicsForceClientRpc(ulong networkObjectId, Vector3 rayOrigin, Vector3 hitPoint, float force)
+    {
+        // Find the network object and apply physics force on ALL clients (including host)
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(networkObjectId, out NetworkObject networkObject))
+        {
+            Rigidbody rb = networkObject.GetComponent<Rigidbody>();
+            if (rb != null && !rb.isKinematic)
+            {
+                Vector3 forceDirection = hitPoint - rayOrigin;
+                rb.AddForceAtPosition(forceDirection.normalized * force, hitPoint, ForceMode.Impulse);
+                Debug.Log($"Physics force applied on client to {networkObject.name}");
+            }
         }
     }
 
