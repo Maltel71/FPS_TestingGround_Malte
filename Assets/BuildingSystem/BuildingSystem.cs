@@ -10,6 +10,16 @@ public class BuildingSystem : MonoBehaviour
     public float maxBuildDistance = 10f;
     public float playerCollisionRadius = 1f;
 
+    [Header("Audio")]
+    public AudioSource placementAudioSource;
+    public AudioClip[] blockPlacementSounds = new AudioClip[4];
+    public float placementPitchVariation = 0.2f;
+    public AudioSource blockSwitchAudioSource;
+    public AudioClip blockSwitchSound;
+    public AudioSource buildModeAudioSource;
+    public AudioClip buildModeEnterSound;
+    public AudioClip buildModeExitSound;
+
     [Header("References")]
     public FirstPersonController fpsController;
     public WeaponShooting weaponShooting;
@@ -66,6 +76,16 @@ public class BuildingSystem : MonoBehaviour
         buildingMode = !buildingMode;
         ghostObject.SetActive(buildingMode);
 
+        // Play build mode sound
+        if (buildModeAudioSource != null)
+        {
+            AudioClip soundToPlay = buildingMode ? buildModeEnterSound : buildModeExitSound;
+            if (soundToPlay != null)
+            {
+                buildModeAudioSource.PlayOneShot(soundToPlay);
+            }
+        }
+
         // Disable/enable other systems
         if (weaponShooting != null)
             weaponShooting.enabled = !buildingMode;
@@ -108,12 +128,23 @@ public class BuildingSystem : MonoBehaviour
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0)
         {
+            int previousBlockIndex = currentBlockIndex;
+
             if (scroll > 0)
                 currentBlockIndex = (currentBlockIndex + 1) % blockPrefabs.Length;
             else
                 currentBlockIndex = (currentBlockIndex - 1 + blockPrefabs.Length) % blockPrefabs.Length;
 
-            UpdateGhostMesh();
+            // Play block switch sound only if block actually changed
+            if (previousBlockIndex != currentBlockIndex)
+            {
+                if (blockSwitchAudioSource != null && blockSwitchSound != null)
+                {
+                    blockSwitchAudioSource.PlayOneShot(blockSwitchSound);
+                }
+
+                UpdateGhostMesh();
+            }
         }
     }
 
@@ -170,17 +201,43 @@ public class BuildingSystem : MonoBehaviour
 
         // Add to building layer if it's not already there
         newBlock.layer = LayerMaskToLayer(buildingLayer);
+
+        // Play placement sound for the current block type
+        if (placementAudioSource != null && currentBlockIndex < blockPlacementSounds.Length)
+        {
+            AudioClip placementSound = blockPlacementSounds[currentBlockIndex];
+            if (placementSound != null)
+            {
+                // Add pitch variation for more natural sound
+                placementAudioSource.pitch = 1f + Random.Range(-placementPitchVariation, placementPitchVariation);
+                placementAudioSource.PlayOneShot(placementSound);
+            }
+        }
     }
 
     void RemoveBlock()
     {
         Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
 
+        // Use a broader layermask or no layermask to detect blocks
         if (Physics.Raycast(ray, out RaycastHit hit, maxBuildDistance))
         {
             if (hit.collider.CompareTag("Block"))
             {
                 Destroy(hit.collider.gameObject);
+
+                // Optional: Play a destruction sound
+                if (placementAudioSource != null)
+                {
+                    // You could add a separate destruction sound array here if desired
+                    // For now, we'll use the placement sound with lower pitch
+                    placementAudioSource.pitch = 0.7f + Random.Range(-0.1f, 0.1f);
+                    // Use the same sound as placement, or add separate destruction sounds
+                    if (blockPlacementSounds.Length > currentBlockIndex && blockPlacementSounds[currentBlockIndex] != null)
+                    {
+                        placementAudioSource.PlayOneShot(blockPlacementSounds[currentBlockIndex]);
+                    }
+                }
             }
         }
     }
