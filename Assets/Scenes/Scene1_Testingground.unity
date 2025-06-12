@@ -106484,6 +106484,7 @@ MonoBehaviour:
   blockPrefabs:
   - {fileID: 2622114696918476833, guid: ad45e160a2153534f8212d728ef88c29, type: 3}
   - {fileID: 2622114696918476833, guid: 106f9155a846d4a4bb0fcae2932de0cb, type: 3}
+  - {fileID: 2699746228642993661, guid: 2308510bfbf8c66498b4df96f5a7808d, type: 3}
   ghostMaterial: {fileID: 2100000, guid: d15f295de572ff442bc68678fe3fb2a2, type: 2}
   invalidGhostMaterial: {fileID: 2100000, guid: 9e7c127b3c99c5f4eb3e0826a1994b8c, type: 2}
   buildingLayer:
