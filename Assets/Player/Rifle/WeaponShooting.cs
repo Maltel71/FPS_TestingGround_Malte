@@ -43,6 +43,8 @@ public class WeaponShooting : MonoBehaviour
     [SerializeField] private AudioClip emptySound;
     [SerializeField] private AudioSource reloadAudioSource;
     [SerializeField] private AudioClip reloadSound;
+    [SerializeField] private AudioSource fireModeAudioSource;
+    [SerializeField] private AudioClip fireModeSound;
     [SerializeField] private float pitchVariation = 0.1f;
 
     [Header("Muzzle Flash Light")]
@@ -57,6 +59,9 @@ public class WeaponShooting : MonoBehaviour
     [SerializeField] private bool showDebugRay = true;
     [SerializeField] private float debugRayDuration = 1f;
     [SerializeField] private Color debugRayColor = Color.red;
+
+    [Header("References")]
+    [SerializeField] private PauseMenuManager pauseMenuManager;
 
     private float nextFireTime = 0f;
     private Vector3 currentRecoil;
@@ -74,12 +79,20 @@ public class WeaponShooting : MonoBehaviour
         if (playerCamera == null)
             playerCamera = Camera.main;
 
+        // Find pause menu manager if not assigned
+        if (pauseMenuManager == null)
+            pauseMenuManager = FindObjectOfType<PauseMenuManager>();
+
         if (muzzleFlashLight != null)
             muzzleFlashLight.enabled = false;
     }
 
     private void Update()
     {
+        // Check if options menu is open - if so, skip all weapon input
+        if (pauseMenuManager != null && pauseMenuManager.IsOptionsMenuOpen())
+            return;
+
         if (Input.GetKeyDown(reloadKey) && !isReloading && currentAmmo < maxAmmoPerMag)
         {
             StartCoroutine(ReloadCoroutine());
@@ -90,6 +103,14 @@ public class WeaponShooting : MonoBehaviour
         if (Input.GetKeyDown(toggleModeKey))
         {
             isFullAuto = !isFullAuto;
+
+            // Play firemode switch sound
+            if (fireModeAudioSource != null && fireModeSound != null)
+            {
+                fireModeAudioSource.PlayOneShot(fireModeSound);
+            }
+
+            Debug.Log($"Fire mode: {(isFullAuto ? "Full Auto" : "Semi Auto")}");
         }
 
         bool shouldShoot = isFullAuto ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);

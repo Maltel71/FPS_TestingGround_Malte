@@ -19,6 +19,9 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private bool lockCursor = true;
 
+    [Header("References")]
+    [SerializeField] private PauseMenuManager pauseMenuManager;
+
     private CharacterController controller;
     private Vector3 playerVelocity;
     private float xRotation = 0f;
@@ -41,6 +44,10 @@ public class FirstPersonController : MonoBehaviour
                 Debug.LogError("No camera assigned to FirstPersonController and none found in children.");
         }
 
+        // Find pause menu manager if not assigned
+        if (pauseMenuManager == null)
+            pauseMenuManager = FindObjectOfType<PauseMenuManager>();
+
         // Store original values
         standingHeight = controller.height;
         standingCameraPos = cameraTransform.localPosition;
@@ -54,6 +61,10 @@ public class FirstPersonController : MonoBehaviour
 
     private void Update()
     {
+        // Check if options menu is open - if so, skip all input handling
+        if (pauseMenuManager != null && pauseMenuManager.IsOptionsMenuOpen())
+            return;
+
         isGrounded = controller.isGrounded;
         if (isGrounded && playerVelocity.y < 0)
         {
