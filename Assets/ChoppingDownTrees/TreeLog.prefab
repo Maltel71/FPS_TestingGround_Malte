@@ -290,6 +290,10 @@ MonoBehaviour:
   breakEffect: {fileID: 6050642270309899083, guid: b9332f3a18b27a149922ce8db63ca710, type: 3}
   audioSource: {fileID: -7020032766844806308}
   breakSound: {fileID: 8300000, guid: f9c4d775cd077a342a05d52fefdf4c24, type: 3}
+  logBreakingSound: {fileID: 8300000, guid: 66a5cba52935c67408ad54fed9793e71, type: 3}
+  collisionSound: {fileID: 8300000, guid: f9c4d775cd077a342a05d52fefdf4c24, type: 3}
+  collisionCooldown: 0.5
+  minCollisionForce: 0.1
 --- !u!82 &-7020032766844806308
 AudioSource:
   m_ObjectHideFlags: 0

@@ -16,8 +16,16 @@ public class TreeLog : MonoBehaviour
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip breakSound;
+    public AudioClip logBreakingSound;
+    public AudioClip collisionSound;
+
+    [Header("Collision Audio Settings")]
+    public float collisionCooldown = 0.5f;
+    public float minCollisionForce = 2f;
 
     private Rigidbody rb;
+    private float lastCollisionTime = 0f;
+    private bool isDestroyed = false; // Prevent multiple calls
 
     void Start()
     {
@@ -47,6 +55,9 @@ public class TreeLog : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
+        // Prevent damage if already destroyed
+        if (isDestroyed) return;
+
         currentHealth -= damage;
 
         // Play effects
@@ -65,6 +76,62 @@ public class TreeLog : MonoBehaviour
     }
 
     void BreakLog()
+    {
+        // Prevent multiple calls
+        if (isDestroyed) return;
+        isDestroyed = true;
+
+        // Spawn sticks immediately
+        SpawnSticks();
+
+        // Hide the log and disable collision
+        HideLogComponents();
+
+        // Play breaking sound and destroy after sound finishes
+        if (audioSource != null && logBreakingSound != null)
+        {
+            audioSource.PlayOneShot(logBreakingSound);
+            StartCoroutine(DestroyLogAfterSound(logBreakingSound.length));
+        }
+        else
+        {
+            // No sound, destroy after short delay
+            StartCoroutine(DestroyLogAfterSound(0.1f));
+        }
+    }
+
+    void HideLogComponents()
+    {
+        // Hide all mesh renderers
+        MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>();
+        foreach (MeshRenderer renderer in renderers)
+        {
+            renderer.enabled = false;
+        }
+
+        // Disable all colliders (so player can't hit invisible log)
+        Collider[] colliders = GetComponentsInChildren<Collider>();
+        foreach (Collider col in colliders)
+        {
+            col.enabled = false;
+        }
+
+        // Disable rigidbody physics
+        if (rb != null)
+            rb.isKinematic = true;
+
+        // Disable particle effect if it exists
+        if (breakEffect != null)
+            breakEffect.gameObject.SetActive(false);
+    }
+
+    System.Collections.IEnumerator DestroyLogAfterSound(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        Destroy(gameObject);
+    }
+
+    void SpawnSticks()
     {
         if (stickPrefab != null && stickSpawnPoints.Length > 0)
         {
@@ -98,7 +165,28 @@ public class TreeLog : MonoBehaviour
         }
 
         Debug.Log("Log broke into sticks!");
-        Destroy(gameObject);
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        // Don't play collision sounds if destroyed
+        if (isDestroyed) return;
+
+        // Check if enough time has passed since last collision sound
+        if (Time.time - lastCollisionTime < collisionCooldown)
+            return;
+
+        // Check if collision was strong enough
+        if (collision.relativeVelocity.magnitude < minCollisionForce)
+            return;
+
+        // Play collision sound
+        if (audioSource != null && collisionSound != null)
+        {
+            audioSource.PlayOneShot(collisionSound);
+            lastCollisionTime = Time.time;
+            Debug.Log($"Log collision with {collision.gameObject.name}");
+        }
     }
 
     // Show health info in inspector during play mode

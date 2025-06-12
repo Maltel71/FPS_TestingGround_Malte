@@ -23,6 +23,7 @@ public class BuildingSystem : MonoBehaviour
     [Header("References")]
     public FirstPersonController fpsController;
     public WeaponShooting weaponShooting;
+    public WeaponController weaponController; // New reference
 
     private bool buildingMode = false;
     private int currentBlockIndex = 0;
@@ -40,6 +41,9 @@ public class BuildingSystem : MonoBehaviour
 
         if (weaponShooting == null)
             weaponShooting = FindObjectOfType<WeaponShooting>();
+
+        if (weaponController == null)
+            weaponController = FindObjectOfType<WeaponController>();
 
         playerCamera = Camera.main;
         if (playerCamera == null)
@@ -86,12 +90,17 @@ public class BuildingSystem : MonoBehaviour
             }
         }
 
+        // Notify weapon controller about build mode change
+        if (weaponController != null)
+        {
+            weaponController.OnBuildingModeChanged(buildingMode);
+        }
+
         // Disable/enable other systems
         if (weaponShooting != null)
             weaponShooting.enabled = !buildingMode;
 
-        // Don't change cursor lock state - let FPS controller handle it
-        // The FPS controller already manages cursor locking
+        Debug.Log($"Building mode: {(buildingMode ? "ON" : "OFF")}");
     }
 
     void UpdateGhostPosition()
@@ -188,6 +197,7 @@ public class BuildingSystem : MonoBehaviour
             ghostRenderer.material = canPlaceBlock ? ghostMaterial : invalidGhostMaterial;
         }
     }
+
     void PlaceBlock()
     {
         Vector3 placePos = ghostObject.transform.position;
@@ -288,4 +298,7 @@ public class BuildingSystem : MonoBehaviour
         renderer.material = canPlaceBlock ? ghostMaterial : invalidGhostMaterial;
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
+
+    // Public getter for other systems to check build mode status
+    public bool IsBuildingMode() => buildingMode;
 }

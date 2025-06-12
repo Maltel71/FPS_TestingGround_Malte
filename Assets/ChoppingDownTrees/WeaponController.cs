@@ -5,12 +5,23 @@ public class WeaponController : MonoBehaviour
     [Header("Weapons")]
     public GameObject rifle;
     public GameObject axe;
+    public GameObject hammer; // New hammer weapon
 
-    [Header("Settings")]
+    [Header("Axe Settings")]
     public float axeRange = 3f;
     public LayerMask treeLayer = 1 << 8; // Set trees to layer 8
 
-    private bool isAxeActive = false;
+    [Header("References")]
+    public BuildingSystem buildingSystem; // Reference to building system
+
+    public enum WeaponType
+    {
+        Rifle,
+        Axe,
+        Hammer
+    }
+
+    private WeaponType currentWeapon = WeaponType.Rifle;
     private Camera playerCamera;
 
     void Start()
@@ -19,30 +30,104 @@ public class WeaponController : MonoBehaviour
         if (playerCamera == null)
             playerCamera = FindObjectOfType<Camera>();
 
+        // Find building system if not assigned
+        if (buildingSystem == null)
+            buildingSystem = FindObjectOfType<BuildingSystem>();
+
         // Start with rifle active
-        SetWeapon(false);
+        SetWeapon(WeaponType.Rifle);
     }
 
     void Update()
     {
-        // Weapon switching
-        if (Input.GetKeyDown(KeyCode.Q))
+        // Only allow weapon switching when not in building mode
+        if (buildingSystem != null && !buildingSystem.IsBuildingMode())
         {
-            isAxeActive = !isAxeActive;
-            SetWeapon(isAxeActive);
+            HandleWeaponSwitching();
         }
 
-        // Axe chopping
-        if (isAxeActive && Input.GetMouseButtonDown(0))
+        // Handle weapon-specific actions
+        HandleWeaponActions();
+    }
+
+    void HandleWeaponSwitching()
+    {
+        // Q key cycles between rifle and axe (original functionality)
+        if (Input.GetKeyDown(KeyCode.Q))
         {
-            ChopTree();
+            if (currentWeapon == WeaponType.Rifle)
+                SetWeapon(WeaponType.Axe);
+            else if (currentWeapon == WeaponType.Axe)
+                SetWeapon(WeaponType.Rifle);
+            // Don't cycle to hammer via Q - that's handled by building mode
+        }
+
+        // Number keys for direct weapon selection (optional)
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+            SetWeapon(WeaponType.Rifle);
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+            SetWeapon(WeaponType.Axe);
+        // Alpha3 could be hammer if you want direct access outside building mode
+    }
+
+    void HandleWeaponActions()
+    {
+        // Only handle weapon actions if left mouse is pressed
+        if (Input.GetMouseButtonDown(0))
+        {
+            switch (currentWeapon)
+            {
+                case WeaponType.Axe:
+                    ChopTree();
+                    break;
+                case WeaponType.Hammer:
+                    // Hammer actions are handled by BuildingSystem
+                    // Could add hammer-specific effects here if needed
+                    break;
+                    // Rifle shooting is handled by WeaponShooting component
+            }
         }
     }
 
-    void SetWeapon(bool useAxe)
+    public void SetWeapon(WeaponType weaponType)
     {
-        rifle.SetActive(!useAxe);
-        axe.SetActive(useAxe);
+        currentWeapon = weaponType;
+
+        // Deactivate all weapons first
+        rifle.SetActive(false);
+        axe.SetActive(false);
+        hammer.SetActive(false);
+
+        // Activate the selected weapon
+        switch (weaponType)
+        {
+            case WeaponType.Rifle:
+                rifle.SetActive(true);
+                break;
+            case WeaponType.Axe:
+                axe.SetActive(true);
+                break;
+            case WeaponType.Hammer:
+                hammer.SetActive(true);
+                break;
+        }
+
+        Debug.Log($"Switched to {weaponType}");
+    }
+
+    // Called by BuildingSystem when entering/exiting build mode
+    public void OnBuildingModeChanged(bool isBuildingMode)
+    {
+        if (isBuildingMode)
+        {
+            // Switch to hammer when entering build mode
+            SetWeapon(WeaponType.Hammer);
+        }
+        else
+        {
+            // Return to rifle when exiting build mode
+            SetWeapon(WeaponType.Rifle);
+        }
     }
 
     void ChopTree()
@@ -82,9 +167,15 @@ public class WeaponController : MonoBehaviour
         }
     }
 
+    // Getters for other systems
+    public WeaponType GetCurrentWeapon() => currentWeapon;
+    public bool IsAxeActive() => currentWeapon == WeaponType.Axe;
+    public bool IsHammerActive() => currentWeapon == WeaponType.Hammer;
+    public bool IsRifleActive() => currentWeapon == WeaponType.Rifle;
+
     void OnDrawGizmosSelected()
     {
-        if (isAxeActive && playerCamera != null)
+        if (currentWeapon == WeaponType.Axe && playerCamera != null)
         {
             Gizmos.color = Color.red;
             Vector3 rayStart = playerCamera.transform.position;

@@ -16,6 +16,9 @@ public class Tree : MonoBehaviour
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip chopSound;
+    public AudioClip treeFallingSound;
+
+    private bool isDestroyed = false; // Prevent multiple calls
 
     void Start()
     {
@@ -31,6 +34,9 @@ public class Tree : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
+        // Prevent damage if already destroyed
+        if (isDestroyed) return;
+
         currentHealth -= damage;
 
         // Play effects
@@ -50,6 +56,58 @@ public class Tree : MonoBehaviour
 
     void FellTree()
     {
+        // Prevent multiple calls
+        if (isDestroyed) return;
+        isDestroyed = true;
+
+        // Spawn logs immediately
+        SpawnLogs();
+
+        // Hide the tree and disable collision
+        HideTreeComponents();
+
+        // Play falling sound and destroy after sound finishes
+        if (audioSource != null && treeFallingSound != null)
+        {
+            audioSource.PlayOneShot(treeFallingSound);
+            StartCoroutine(DestroyAfterSound(treeFallingSound.length));
+        }
+        else
+        {
+            // No sound, destroy after short delay
+            StartCoroutine(DestroyAfterSound(0.1f));
+        }
+    }
+
+    void HideTreeComponents()
+    {
+        // Hide all mesh renderers
+        MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>();
+        foreach (MeshRenderer renderer in renderers)
+        {
+            renderer.enabled = false;
+        }
+
+        // Disable all colliders
+        Collider[] colliders = GetComponentsInChildren<Collider>();
+        foreach (Collider col in colliders)
+        {
+            col.enabled = false;
+        }
+
+        // Disable particle effect if it exists
+        if (chopEffect != null)
+            chopEffect.gameObject.SetActive(false);
+    }
+
+    System.Collections.IEnumerator DestroyAfterSound(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        Destroy(gameObject);
+    }
+
+    void SpawnLogs()
+    {
         if (treeLogPrefab != null && logSpawnPoints.Length > 0)
         {
             // Spawn logs at specific positions
@@ -66,16 +124,12 @@ public class Tree : MonoBehaviour
                 }
             }
 
-            // Optional: Add falling sound effect
             Debug.Log("Tree fell down!");
         }
         else
         {
             Debug.LogWarning("TreeLog prefab or spawn points not assigned!");
         }
-
-        // Destroy the standing tree
-        Destroy(gameObject);
     }
 
     // Show health info in inspector during play mode
