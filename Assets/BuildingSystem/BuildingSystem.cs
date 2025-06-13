@@ -10,6 +10,10 @@ public class BuildingSystem : MonoBehaviour
     public float maxBuildDistance = 10f;
     public float playerCollisionRadius = 1f;
 
+    [Header("Ghost Stability")]
+    public float ghostUpdateThreshold = 0.8f; // Adjustable threshold - try values between 0.3 and 1.5
+    public float ghostSmoothingSpeed = 15f; // How fast ghost moves to new position
+
     [Header("Audio")]
     public AudioSource placementAudioSource;
     public AudioClip[] blockPlacementSounds = new AudioClip[4];
@@ -34,6 +38,8 @@ public class BuildingSystem : MonoBehaviour
     private MeshRenderer ghostRenderer;
     private bool canPlaceBlock = true;
     private float currentRotationY = 0f; // Track Y-axis rotation
+    private Vector3 targetGhostPosition;
+    private bool hasValidTarget = false;
 
     void Start()
     {
@@ -141,26 +147,49 @@ public class BuildingSystem : MonoBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, maxBuildDistance, buildingLayer))
         {
-            // Place block on the surface hit by raycast
-            Vector3 targetPos = hit.point + hit.normal * 0.5f;
-            Vector3 gridPos = new Vector3(
+            // Calculate the target position more carefully
+            Vector3 hitPoint = hit.point;
+            Vector3 hitNormal = hit.normal;
+
+            // Move the placement point slightly away from the surface
+            Vector3 targetPos = hitPoint + hitNormal * 0.5f;
+
+            // Grid snapping
+            Vector3 newGridPos = new Vector3(
                 Mathf.Round(targetPos.x),
                 Mathf.Round(targetPos.y),
                 Mathf.Round(targetPos.z)
             );
 
-            ghostObject.transform.position = gridPos;
-            UpdateGhostRotation(); // Ensure rotation is maintained
+            // Only update target if it's significantly different (using configurable threshold)
+            if (!hasValidTarget || Vector3.Distance(targetGhostPosition, newGridPos) > ghostUpdateThreshold)
+            {
+                targetGhostPosition = newGridPos;
+                hasValidTarget = true;
+            }
+
+            // Smoothly move ghost to target position
+            if (hasValidTarget)
+            {
+                ghostObject.transform.position = Vector3.Lerp(
+                    ghostObject.transform.position,
+                    targetGhostPosition,
+                    Time.deltaTime * ghostSmoothingSpeed
+                );
+                UpdateGhostRotation();
+            }
+
             ghostObject.SetActive(true);
 
-            // Check if position is valid for placement
-            canPlaceBlock = IsValidPlacementPosition(gridPos);
+            // Check if position is valid for placement using the target position
+            canPlaceBlock = IsValidPlacementPosition(targetGhostPosition);
             UpdateGhostMaterial();
         }
         else
         {
             ghostObject.SetActive(false);
             canPlaceBlock = false;
+            hasValidTarget = false;
         }
     }
 
@@ -237,7 +266,7 @@ public class BuildingSystem : MonoBehaviour
 
     void PlaceBlock()
     {
-        Vector3 placePos = ghostObject.transform.position;
+        Vector3 placePos = targetGhostPosition; // Use target position instead of current ghost position
         Quaternion placeRotation = Quaternion.Euler(0, currentRotationY, 0);
 
         // Double-check validity before placing
