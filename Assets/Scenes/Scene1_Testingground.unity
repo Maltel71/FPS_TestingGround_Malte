@@ -106173,6 +106173,7 @@ GameObject:
   - component: {fileID: 1813306549}
   - component: {fileID: 1813306550}
   - component: {fileID: 1813306551}
+  - component: {fileID: 1813306554}
   - component: {fileID: 1813306552}
   - component: {fileID: 1813306553}
   m_Layer: 7
@@ -106195,7 +106196,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 5
-  sprintSpeed: 16
+  sprintSpeed: 12
   crouchSpeed: 2
   jumpHeight: 2
   gravity: -20
@@ -106403,7 +106404,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1813306539}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a63c96e08ee905d48a06fb5762465d2a, type: 3}
   m_Name: 
@@ -106552,6 +106553,57 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &1813306554
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1813306539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7daeae2b29d3b447aafb66940e0f0e1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  blockPrefabs:
+  - {fileID: 2622114696918476833, guid: 38f4e081d6c68fb498d42823cbf47d49, type: 3}
+  - {fileID: 2699746228642993661, guid: e1e9adaa4f2aa5e429f9bbb6915451be, type: 3}
+  - {fileID: 5588806805507875681, guid: 790136d14f2336b4c9b758894a51afbb, type: 3}
+  - {fileID: 90295586923382872, guid: 3480812ca97d9924e8be89a0222f69cc, type: 3}
+  - {fileID: 5193257223008246060, guid: af00422fb003372439fd4adaec2a1b4f, type: 3}
+  ghostMaterial: {fileID: 2100000, guid: d15f295de572ff442bc68678fe3fb2a2, type: 2}
+  invalidGhostMaterial: {fileID: 2100000, guid: 9e7c127b3c99c5f4eb3e0826a1994b8c, type: 2}
+  buildableLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  blockLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  maxBuildDistance: 10
+  snapDistance: 2
+  playerCollisionRadius: 1
+  enableSnapToGround: 1
+  groundSnapDistance: 0.5
+  snapActivationDistance: 0.8
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  placementAudioSource: {fileID: 0}
+  blockPlacementSounds:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  placementPitchVariation: 0.2
+  blockSwitchAudioSource: {fileID: 0}
+  blockSwitchSound: {fileID: 0}
+  buildModeAudioSource: {fileID: 0}
+  buildModeEnterSound: {fileID: 0}
+  buildModeExitSound: {fileID: 0}
+  rotationSound: {fileID: 0}
+  fpsController: {fileID: 1813306540}
+  weaponShooting: {fileID: 1938606399}
+  weaponController: {fileID: 1813306552}
 --- !u!1 &1817846144
 GameObject:
   m_ObjectHideFlags: 0
