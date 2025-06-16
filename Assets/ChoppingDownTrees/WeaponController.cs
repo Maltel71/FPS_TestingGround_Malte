@@ -13,6 +13,7 @@ public class WeaponController : MonoBehaviour
 
     [Header("References")]
     public BuildingSystem buildingSystem; // Reference to building system
+    public FirstPersonController firstPersonController; // Reference to check if carrying
 
     public enum WeaponType
     {
@@ -23,6 +24,7 @@ public class WeaponController : MonoBehaviour
 
     private WeaponType currentWeapon = WeaponType.Rifle;
     private Camera playerCamera;
+    private bool weaponsEnabled = true;
 
     void Start()
     {
@@ -34,20 +36,27 @@ public class WeaponController : MonoBehaviour
         if (buildingSystem == null)
             buildingSystem = FindObjectOfType<BuildingSystem>();
 
+        // Find first person controller if not assigned
+        if (firstPersonController == null)
+            firstPersonController = FindObjectOfType<FirstPersonController>();
+
         // Start with rifle active
         SetWeapon(WeaponType.Rifle);
     }
 
     void Update()
     {
-        // Only allow weapon switching when not in building mode
-        if (buildingSystem != null && !buildingSystem.IsBuildingMode())
+        // Only allow weapon switching when not in building mode AND weapons are enabled
+        if (weaponsEnabled && buildingSystem != null && !buildingSystem.IsBuildingMode())
         {
             HandleWeaponSwitching();
         }
 
-        // Handle weapon-specific actions
-        HandleWeaponActions();
+        // Handle weapon-specific actions only if weapons are enabled
+        if (weaponsEnabled)
+        {
+            HandleWeaponActions();
+        }
     }
 
     void HandleWeaponSwitching()
@@ -91,6 +100,10 @@ public class WeaponController : MonoBehaviour
 
     public void SetWeapon(WeaponType weaponType)
     {
+        // Don't allow weapon switching if weapons are disabled
+        if (!weaponsEnabled)
+            return;
+
         currentWeapon = weaponType;
 
         // Deactivate all weapons first
@@ -113,6 +126,27 @@ public class WeaponController : MonoBehaviour
         }
 
         Debug.Log($"Switched to {weaponType}");
+    }
+
+    // New method to enable/disable all weapons
+    public void SetWeaponsEnabled(bool enabled)
+    {
+        weaponsEnabled = enabled;
+
+        if (!enabled)
+        {
+            // Disable all weapons when carrying
+            rifle.SetActive(false);
+            axe.SetActive(false);
+            hammer.SetActive(false);
+            Debug.Log("Weapons disabled - carrying object");
+        }
+        else
+        {
+            // Re-enable the current weapon when not carrying
+            SetWeapon(currentWeapon);
+            Debug.Log("Weapons enabled");
+        }
     }
 
     // Called by BuildingSystem when entering/exiting build mode

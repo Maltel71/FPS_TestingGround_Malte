@@ -21,6 +21,14 @@ public class FirstPersonController : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private PauseMenuManager pauseMenuManager;
+    [SerializeField] private WeaponController weaponController;
+
+    [Header("Pickup Settings")]
+    [SerializeField] private float pickupRange = 3f;
+    [SerializeField] private float carryDistance = 1f;
+    [SerializeField] private LayerMask pickupMask = -1;
+    [SerializeField] private float throwForce = 10f;
+    [SerializeField] private float throwTorque = 5f;
 
     private CharacterController controller;
     private Vector3 playerVelocity;
@@ -30,6 +38,8 @@ public class FirstPersonController : MonoBehaviour
     private bool isCrouching;
     private float standingHeight;
     private Vector3 standingCameraPos;
+    private Carriable carriedObject;
+    private Vector3 carryPosition;
 
     private void Awake()
     {
@@ -47,6 +57,10 @@ public class FirstPersonController : MonoBehaviour
         // Find pause menu manager if not assigned
         if (pauseMenuManager == null)
             pauseMenuManager = FindObjectOfType<PauseMenuManager>();
+
+        // Find weapon controller if not assigned
+        if (weaponController == null)
+            weaponController = FindObjectOfType<WeaponController>();
 
         // Store original values
         standingHeight = controller.height;
@@ -76,6 +90,8 @@ public class FirstPersonController : MonoBehaviour
         HandleMovement();
         HandleLook();
         HandleJump();
+        HandlePickup();
+        UpdateCarriedObject();
         ApplyGravity();
     }
 
@@ -137,5 +153,135 @@ public class FirstPersonController : MonoBehaviour
     {
         playerVelocity.y += gravity * Time.deltaTime;
         controller.Move(playerVelocity * Time.deltaTime);
+    }
+
+    private void HandlePickup()
+    {
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (carriedObject != null)
+            {
+                DropObject();
+            }
+            else
+            {
+                TryPickupObject();
+            }
+        }
+
+        // Handle throwing with left mouse button
+        if (Input.GetMouseButtonDown(0) && carriedObject != null)
+        {
+            ThrowObject();
+        }
+    }
+
+    private void TryPickupObject()
+    {
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, pickupMask))
+        {
+            Carriable carriable = hit.collider.GetComponent<Carriable>();
+            if (carriable != null && !carriable.IsBeingCarried())
+            {
+                carriedObject = carriable;
+                carriedObject.StartCarrying(this); // Pass 'this' controller reference
+                UpdateCarryPosition();
+
+                // Disable weapons when picking up
+                if (weaponController != null)
+                    weaponController.SetWeaponsEnabled(false);
+            }
+        }
+    }
+
+    private void DropObject()
+    {
+        if (carriedObject != null)
+        {
+            carriedObject.StopCarrying();
+            carriedObject = null;
+
+            // Re-enable weapons when dropping
+            if (weaponController != null)
+                weaponController.SetWeaponsEnabled(true);
+        }
+    }
+
+    // New method for force dropping when breakforce is exceeded
+    public void ForceDropObject()
+    {
+        if (carriedObject != null)
+        {
+            carriedObject.StopCarrying();
+            carriedObject = null;
+
+            // Re-enable weapons when force dropping
+            if (weaponController != null)
+                weaponController.SetWeaponsEnabled(true);
+
+            // Optional: Add some feedback like a sound or screen shake
+            Debug.Log("Object dropped due to impact!");
+        }
+    }
+
+    // New method for throwing objects
+    private void ThrowObject()
+    {
+        if (carriedObject != null)
+        {
+            Rigidbody carriedRb = carriedObject.GetComponent<Rigidbody>();
+
+            // Stop carrying
+            carriedObject.StopCarrying();
+
+            // Apply throw force in camera forward direction
+            Vector3 throwDirection = cameraTransform.forward;
+            carriedRb.AddForce(throwDirection * throwForce, ForceMode.Impulse);
+
+            // Add random rotation
+            Vector3 randomTorque = new Vector3(
+                Random.Range(-throwTorque, throwTorque),
+                Random.Range(-throwTorque, throwTorque),
+                Random.Range(-throwTorque, throwTorque)
+            );
+            carriedRb.AddTorque(randomTorque, ForceMode.Impulse);
+
+            carriedObject = null;
+
+            // Re-enable weapons when throwing
+            if (weaponController != null)
+                weaponController.SetWeaponsEnabled(true);
+
+            Debug.Log("Object thrown!");
+        }
+    }
+
+    // Public getter to check if player is carrying something
+    public bool IsCarryingSomething()
+    {
+        return carriedObject != null;
+    }
+
+    private void UpdateCarriedObject()
+    {
+        if (carriedObject != null)
+        {
+            UpdateCarryPosition();
+
+            Rigidbody carriedRb = carriedObject.GetComponent<Rigidbody>();
+
+            // Calculate velocity needed to reach target position
+            Vector3 velocityNeeded = (carryPosition - carriedObject.transform.position) / Time.fixedDeltaTime;
+
+            // Apply the velocity directly
+            carriedRb.linearVelocity = velocityNeeded;
+        }
+    }
+
+    private void UpdateCarryPosition()
+    {
+        carryPosition = cameraTransform.position + cameraTransform.forward * carryDistance;
     }
 }

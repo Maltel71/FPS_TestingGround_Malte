@@ -62,6 +62,7 @@ public class WeaponShooting : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private PauseMenuManager pauseMenuManager;
+    [SerializeField] private WeaponController weaponController; // Reference to check if weapons enabled
 
     private float nextFireTime = 0f;
     private Vector3 currentRecoil;
@@ -79,6 +80,10 @@ public class WeaponShooting : MonoBehaviour
         if (playerCamera == null)
             playerCamera = Camera.main;
 
+        // Find weapon controller if not assigned
+        if (weaponController == null)
+            weaponController = FindObjectOfType<WeaponController>();
+
         // Find pause menu manager if not assigned
         if (pauseMenuManager == null)
             pauseMenuManager = FindObjectOfType<PauseMenuManager>();
@@ -91,6 +96,10 @@ public class WeaponShooting : MonoBehaviour
     {
         // Check if options menu is open - if so, skip all weapon input
         if (pauseMenuManager != null && pauseMenuManager.IsOptionsMenuOpen())
+            return;
+
+        // Check if this weapon component is active (weapons disabled when carrying)
+        if (!gameObject.activeInHierarchy)
             return;
 
         if (Input.GetKeyDown(reloadKey) && !isReloading && currentAmmo < maxAmmoPerMag)
