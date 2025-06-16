@@ -19,6 +19,11 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private bool lockCursor = true;
 
+    [Header("Input Settings")]
+    [SerializeField] private KeyCode carryKey = KeyCode.E;
+    [SerializeField] private KeyCode crouchKey = KeyCode.LeftControl;
+    [SerializeField] private KeyCode sprintKey = KeyCode.LeftShift;
+
     [Header("References")]
     [SerializeField] private PauseMenuManager pauseMenuManager;
     [SerializeField] private WeaponController weaponController;
@@ -97,7 +102,7 @@ public class FirstPersonController : MonoBehaviour
 
     private void HandleCrouch()
     {
-        bool wantsToCrouch = Input.GetKey(KeyCode.LeftControl);
+        bool wantsToCrouch = Input.GetKey(crouchKey);
 
         if (wantsToCrouch != isCrouching)
         {
@@ -116,7 +121,7 @@ public class FirstPersonController : MonoBehaviour
 
     private void HandleSprint()
     {
-        isSprinting = Input.GetKey(KeyCode.LeftShift) && !isCrouching;
+        isSprinting = Input.GetKey(sprintKey) && !isCrouching;
     }
 
     private void HandleMovement()
@@ -157,7 +162,7 @@ public class FirstPersonController : MonoBehaviour
 
     private void HandlePickup()
     {
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKeyDown(carryKey))
         {
             if (carriedObject != null)
             {
@@ -284,4 +289,25 @@ public class FirstPersonController : MonoBehaviour
     {
         carryPosition = cameraTransform.position + cameraTransform.forward * carryDistance;
     }
+
+    // Public method to change keybinds at runtime (useful for settings menu)
+    public void SetCarryKey(KeyCode newKey)
+    {
+        carryKey = newKey;
+    }
+
+    public void SetCrouchKey(KeyCode newKey)
+    {
+        crouchKey = newKey;
+    }
+
+    public void SetSprintKey(KeyCode newKey)
+    {
+        sprintKey = newKey;
+    }
+
+    // Public getters for current keybinds
+    public KeyCode GetCarryKey() => carryKey;
+    public KeyCode GetCrouchKey() => crouchKey;
+    public KeyCode GetSprintKey() => sprintKey;
 }
