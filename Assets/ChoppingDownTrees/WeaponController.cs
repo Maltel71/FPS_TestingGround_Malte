@@ -3,17 +3,37 @@ using UnityEngine;
 public class WeaponController : MonoBehaviour
 {
     [System.Serializable]
+    public class WeaponData
+    {
+        [Header("Weapon Identity")]
+        public string weaponName;
+        public WeaponCategory weaponCategory;
+
+        [Header("Prefabs")]
+        public GameObject equipPrefab;    // The weapon the player holds/uses
+        public GameObject pickupPrefab;   // The pickup version when dropped/unequipped
+
+        [Header("Optional Settings")]
+        public Sprite weaponIcon;         // For UI
+        public AudioClip pickupSound;     // Custom pickup sound for this weapon
+
+        public bool IsValid() => equipPrefab != null && pickupPrefab != null && !string.IsNullOrEmpty(weaponName);
+    }
+
+    [System.Serializable]
     public class WeaponSlot
     {
         public GameObject weaponPrefab;
         public string weaponName;
+        public WeaponData weaponData; // Reference to the weapon data
 
         public bool HasWeapon() => weaponPrefab != null;
 
-        public void SetWeapon(GameObject weapon, string name)
+        public void SetWeapon(GameObject weapon, WeaponData data)
         {
             weaponPrefab = weapon;
-            weaponName = name;
+            weaponName = data.weaponName;
+            weaponData = data;
         }
 
         public void ClearWeapon()
@@ -21,8 +41,12 @@ public class WeaponController : MonoBehaviour
             if (weaponPrefab != null) weaponPrefab.SetActive(false);
             weaponPrefab = null;
             weaponName = "";
+            weaponData = null;
         }
     }
+
+    [Header("Weapon Database")]
+    [SerializeField] private WeaponData[] weaponDatabase;
 
     [Header("Weapon Slots")]
     [SerializeField] private WeaponSlot primaryWeapon = new WeaponSlot();
@@ -31,14 +55,17 @@ public class WeaponController : MonoBehaviour
     [SerializeField] private WeaponSlot buildingHammer = new WeaponSlot();
 
     [Header("Building Hammer")]
-    [SerializeField] private GameObject defaultHammerPrefab;
-    [SerializeField] private string defaultHammerName = "Building Hammer";
+    [SerializeField] private WeaponData defaultHammerData;
+
+    [Header("Input Settings")]
+    [SerializeField] private KeyCode unequipKey = KeyCode.H;
 
     [Header("Settings")]
     public float axeRange = 3f;
     public LayerMask treeLayer = 1 << 8;
     [SerializeField] private float pickupRange = 3f;
     [SerializeField] private LayerMask weaponPickupLayer = -1;
+    [SerializeField] private float unequipThrowForce = 5f;
 
     [Header("References")]
     public BuildingSystem buildingSystem;
@@ -65,22 +92,56 @@ public class WeaponController : MonoBehaviour
         if (buildingSystem == null) buildingSystem = FindObjectOfType<BuildingSystem>();
         if (firstPersonController == null) firstPersonController = FindObjectOfType<FirstPersonController>();
 
+        ValidateWeaponDatabase();
         InitializeBuildingHammer();
         DeactivateAllWeapons();
         SetInitialWeapon();
     }
 
+    void ValidateWeaponDatabase()
+    {
+        foreach (var weapon in weaponDatabase)
+        {
+            if (!weapon.IsValid())
+            {
+                Debug.LogWarning($"Weapon '{weapon.weaponName}' has missing prefab references!");
+            }
+        }
+    }
+
     void InitializeBuildingHammer()
     {
-        if (defaultHammerPrefab != null)
+        if (defaultHammerData != null && defaultHammerData.IsValid())
         {
-            GameObject hammer = Instantiate(defaultHammerPrefab, playerCamera.transform);
+            GameObject hammer = Instantiate(defaultHammerData.equipPrefab, playerCamera.transform);
             hammer.transform.localPosition = Vector3.zero;
             hammer.transform.localRotation = Quaternion.identity;
             hammer.SetActive(false);
-            hammer.name = defaultHammerName;
-            buildingHammer.SetWeapon(hammer, defaultHammerName);
+            hammer.name = defaultHammerData.weaponName;
+            buildingHammer.SetWeapon(hammer, defaultHammerData);
         }
+    }
+
+    // Find weapon data by name
+    WeaponData FindWeaponData(string weaponName)
+    {
+        foreach (var weapon in weaponDatabase)
+        {
+            if (weapon.weaponName == weaponName)
+                return weapon;
+        }
+        return null;
+    }
+
+    // Find weapon data by category
+    WeaponData FindWeaponDataByCategory(WeaponCategory category)
+    {
+        foreach (var weapon in weaponDatabase)
+        {
+            if (weapon.weaponCategory == category)
+                return weapon;
+        }
+        return null;
     }
 
     void Update()
@@ -99,6 +160,7 @@ public class WeaponController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha1) && TryWeaponAction(() => SwitchToSlot(WeaponType.Primary))) return;
         if (Input.GetKeyDown(KeyCode.Alpha2) && TryWeaponAction(() => SwitchToSlot(WeaponType.Secondary))) return;
         if (Input.GetKeyDown(KeyCode.Alpha3) && TryWeaponAction(() => SwitchToSlot(WeaponType.Melee))) return;
+        if (Input.GetKeyDown(unequipKey) && TryWeaponAction(() => UnequipCurrentWeapon())) return;
     }
 
     bool TryWeaponAction(System.Action action)
@@ -142,6 +204,107 @@ public class WeaponController : MonoBehaviour
         }
     }
 
+    void UnequipCurrentWeapon()
+    {
+        // Cannot unequip building hammer
+        if (currentWeaponType == WeaponType.BuildingHammer)
+        {
+            Debug.Log("Cannot unequip building hammer");
+            return;
+        }
+
+        WeaponSlot currentSlot = GetWeaponSlot(currentWeaponType);
+        if (!currentSlot.HasWeapon())
+        {
+            Debug.Log("No weapon to unequip");
+            return;
+        }
+
+        // Calculate throw position in front of player
+        Vector3 throwPosition = transform.position + playerCamera.transform.forward * 2f + Vector3.up;
+
+        // Drop/throw the weapon using the proper pickup prefab
+        ThrowWeapon(currentWeaponType, throwPosition);
+
+        // Switch to an available weapon or go unarmed
+        SwitchToNextAvailableWeapon();
+
+        Debug.Log($"Unequipped and threw {currentSlot.weaponName}");
+    }
+
+    void ThrowWeapon(WeaponType weaponType, Vector3 throwPosition)
+    {
+        WeaponSlot slot = GetWeaponSlot(weaponType);
+        if (!slot.HasWeapon() || slot.weaponData == null) return;
+
+        // Instantiate the proper pickup prefab from weapon data
+        GameObject pickup = Instantiate(slot.weaponData.pickupPrefab, throwPosition, Quaternion.identity);
+
+        // Get or add WeaponPickup component
+        WeaponPickup pickupComponent = pickup.GetComponent<WeaponPickup>();
+        if (pickupComponent == null)
+        {
+            pickupComponent = pickup.AddComponent<WeaponPickup>();
+        }
+
+        // Setup the pickup component with weapon data
+        pickupComponent.weaponPrefab = slot.weaponData.equipPrefab;
+        pickupComponent.weaponName = slot.weaponData.weaponName;
+        pickupComponent.weaponCategory = slot.weaponData.weaponCategory;
+
+        // Setup physics if needed
+        Rigidbody rb = pickup.GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = pickup.AddComponent<Rigidbody>();
+            rb.mass = 1f;
+            rb.angularDamping = 0.5f;
+            rb.linearDamping = 0.1f;
+        }
+
+        // Add collider if needed
+        Collider col = pickup.GetComponent<Collider>();
+        if (col == null)
+        {
+            BoxCollider boxCol = pickup.AddComponent<BoxCollider>();
+            boxCol.isTrigger = true;
+            boxCol.size = Vector3.one * 0.5f;
+        }
+
+        // Throw the weapon forward with some upward arc
+        Vector3 throwDirection = playerCamera.transform.forward + Vector3.up * 0.3f;
+        rb.AddForce(throwDirection.normalized * unequipThrowForce, ForceMode.Impulse);
+
+        // Add random rotation for realistic effect
+        Vector3 randomTorque = new Vector3(
+            Random.Range(-2f, 2f),
+            Random.Range(-2f, 2f),
+            Random.Range(-2f, 2f)
+        );
+        rb.AddTorque(randomTorque, ForceMode.Impulse);
+
+        // Destroy the equipped weapon and clear slot
+        Destroy(slot.weaponPrefab);
+        slot.ClearWeapon();
+    }
+
+    void SwitchToNextAvailableWeapon()
+    {
+        // Try to switch to next available weapon in order of preference
+        if (primaryWeapon.HasWeapon())
+            SetWeapon(WeaponType.Primary);
+        else if (secondaryWeapon.HasWeapon())
+            SetWeapon(WeaponType.Secondary);
+        else if (meleeWeapon.HasWeapon())
+            SetWeapon(WeaponType.Melee);
+        else
+        {
+            // No weapons available, go unarmed
+            currentWeaponType = WeaponType.Primary; // Default to primary slot but empty
+            DeactivateAllWeapons();
+        }
+    }
+
     void CheckForNearbyWeapons()
     {
         if (nearbyWeapon != null && Vector3.Distance(transform.position, nearbyWeapon.transform.position) > pickupRange)
@@ -172,22 +335,33 @@ public class WeaponController : MonoBehaviour
     {
         if (weaponPickup == null) return;
 
-        WeaponType slotType = GetWeaponSlotType(weaponPickup.weaponCategory);
+        // Find the weapon data for this pickup
+        WeaponData weaponData = FindWeaponData(weaponPickup.weaponName);
+        if (weaponData == null)
+        {
+            Debug.LogWarning($"No weapon data found for {weaponPickup.weaponName}");
+            return;
+        }
+
+        WeaponType slotType = GetWeaponSlotType(weaponData.weaponCategory);
         if (slotType == WeaponType.BuildingHammer) return;
 
         WeaponSlot targetSlot = GetWeaponSlot(slotType);
         if (targetSlot.HasWeapon()) DropWeapon(slotType, weaponPickup.transform.position);
 
-        GameObject newWeapon = Instantiate(weaponPickup.weaponPrefab, playerCamera.transform);
+        // Instantiate the equip prefab from weapon data
+        GameObject newWeapon = Instantiate(weaponData.equipPrefab, playerCamera.transform);
         newWeapon.transform.localPosition = Vector3.zero;
         newWeapon.transform.localRotation = Quaternion.identity;
         newWeapon.SetActive(false);
-        newWeapon.name = weaponPickup.weaponName;
+        newWeapon.name = weaponData.weaponName;
 
-        targetSlot.SetWeapon(newWeapon, weaponPickup.weaponName);
+        targetSlot.SetWeapon(newWeapon, weaponData);
 
-        if (weaponSwitchAudioSource && weaponPickupSound)
-            weaponSwitchAudioSource.PlayOneShot(weaponPickupSound);
+        // Play pickup sound (use weapon-specific sound if available)
+        AudioClip soundToPlay = weaponData.pickupSound != null ? weaponData.pickupSound : weaponPickupSound;
+        if (weaponSwitchAudioSource && soundToPlay)
+            weaponSwitchAudioSource.PlayOneShot(soundToPlay);
 
         if (currentWeaponType == slotType || !GetWeaponSlot(currentWeaponType).HasWeapon())
             SetWeapon(slotType);
@@ -290,24 +464,24 @@ public class WeaponController : MonoBehaviour
         if (weaponType == WeaponType.BuildingHammer) return;
 
         WeaponSlot slot = GetWeaponSlot(weaponType);
-        if (!slot.HasWeapon()) return;
+        if (!slot.HasWeapon() || slot.weaponData == null) return;
 
-        GameObject pickup = new GameObject($"{slot.weaponName}_Pickup");
-        pickup.transform.position = dropPosition + Vector3.up * 0.5f;
+        // Use the pickup prefab from weapon data
+        GameObject pickup = Instantiate(slot.weaponData.pickupPrefab, dropPosition + Vector3.up * 0.5f, Quaternion.identity);
 
-        WeaponPickup pickupComponent = pickup.AddComponent<WeaponPickup>();
-        pickupComponent.weaponPrefab = slot.weaponPrefab;
-        pickupComponent.weaponName = slot.weaponName;
-        pickupComponent.usePhysics = true;
+        WeaponPickup pickupComponent = pickup.GetComponent<WeaponPickup>();
+        if (pickupComponent == null)
+            pickupComponent = pickup.AddComponent<WeaponPickup>();
 
-        BoxCollider col = pickup.AddComponent<BoxCollider>();
-        col.isTrigger = true;
-        col.size = Vector3.one * 0.5f;
+        pickupComponent.weaponPrefab = slot.weaponData.equipPrefab;
+        pickupComponent.weaponName = slot.weaponData.weaponName;
+        pickupComponent.weaponCategory = slot.weaponData.weaponCategory;
 
-        Rigidbody rb = pickup.AddComponent<Rigidbody>();
+        Rigidbody rb = pickup.GetComponent<Rigidbody>();
+        if (rb == null) rb = pickup.AddComponent<Rigidbody>();
+
         rb.AddForce(new Vector3(Random.Range(-2f, 2f), Random.Range(1f, 3f), Random.Range(-2f, 2f)), ForceMode.Impulse);
 
-        pickupComponent.CreateVisualRepresentation();
         Destroy(slot.weaponPrefab);
         slot.ClearWeapon();
     }
@@ -339,9 +513,15 @@ public class WeaponController : MonoBehaviour
     public bool HasWeapon(WeaponType weaponType) => GetWeaponSlot(weaponType).HasWeapon();
     public string GetCurrentWeaponName() => GetWeaponSlot(currentWeaponType).weaponName;
     public bool IsNearWeapon() => nearbyWeapon != null;
+    public WeaponData[] GetWeaponDatabase() => weaponDatabase;
+
+    // Public method to change unequip keybind at runtime
+    public void SetUnequipKey(KeyCode newKey) => unequipKey = newKey;
+    public KeyCode GetUnequipKey() => unequipKey;
 
     // Debug methods
     [ContextMenu("Switch to Primary")] public void DebugSwitchToPrimary() => SwitchToSlot(WeaponType.Primary);
     [ContextMenu("Switch to Melee")] public void DebugSwitchToMelee() => SwitchToSlot(WeaponType.Melee);
     [ContextMenu("Cycle Weapons")] public void DebugCycleWeapons() => CycleWeapons();
+    [ContextMenu("Unequip Current Weapon")] public void DebugUnequipWeapon() => UnequipCurrentWeapon();
 }
