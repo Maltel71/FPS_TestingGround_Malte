@@ -80,9 +80,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2537168748205539396, guid: 12d130453d9001c4ea4460f41d3049f4, type: 3}
+      propertyPath: m_Name
+      value: AK5C_Mesh
+      objectReference: {fileID: 0}
     - target: {fileID: 6267648631355385292, guid: 12d130453d9001c4ea4460f41d3049f4, type: 3}
       propertyPath: m_Name
-      value: Ak5c_Mesh
+      value: Ak5c
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

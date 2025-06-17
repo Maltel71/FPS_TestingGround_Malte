@@ -605,7 +605,7 @@ GameObject:
   - component: {fileID: 1785312515614393337}
   - component: {fileID: 9175379294278890433}
   m_Layer: 0
-  m_Name: BuildingBlock1V2
+  m_Name: Box1_BB_Prefab
   m_TagString: Block
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

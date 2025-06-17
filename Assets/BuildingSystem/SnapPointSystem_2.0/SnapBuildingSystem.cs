@@ -4,7 +4,8 @@ using System.Collections.Generic;
 public class SnapBuildingSystem : MonoBehaviour
 {
     [Header("Building Settings")]
-    public GameObject[] blockPrefabs = new GameObject[4];
+    public BuildingBlockDatabase blockDatabase; // New: Use database instead of array
+    public GameObject[] blockPrefabs = new GameObject[4]; // Keep for backwards compatibility
     public Material ghostMaterial;
     public Material invalidGhostMaterial;
     public LayerMask buildableLayer = -1;
@@ -16,7 +17,7 @@ public class SnapBuildingSystem : MonoBehaviour
     [Header("Snap Settings")]
     public bool enableSnapToGround = true;
     public float groundSnapDistance = 0.5f;
-    public float snapActivationDistance = 0.8f; // How close to snap point before snapping activates
+    public float snapActivationDistance = 0.8f;
     public LayerMask groundLayer = -1;
 
     [Header("Audio")]
@@ -29,11 +30,13 @@ public class SnapBuildingSystem : MonoBehaviour
     public AudioClip buildModeEnterSound;
     public AudioClip buildModeExitSound;
     public AudioClip rotationSound;
+    public AudioClip insufficientResourcesSound;
 
     [Header("References")]
     public FirstPersonController fpsController;
     public WeaponShooting weaponShooting;
     public WeaponController weaponController;
+    public BuildingBlocksMenu buildingMenu;
 
     private bool buildingMode = false;
     private int currentBlockIndex = 0;
@@ -41,7 +44,7 @@ public class SnapBuildingSystem : MonoBehaviour
     private Camera playerCamera;
     private bool wasMouseLocked;
     private MeshRenderer ghostRenderer;
-    private bool canPlaceBlock = true; // Always true now - no placement restrictions
+    private bool canPlaceBlock = true;
     private float currentRotationY = 0f;
 
     // Snap system variables
@@ -62,6 +65,9 @@ public class SnapBuildingSystem : MonoBehaviour
         if (weaponController == null)
             weaponController = FindObjectOfType<WeaponController>();
 
+        if (buildingMenu == null)
+            buildingMenu = FindObjectOfType<BuildingBlocksMenu>();
+
         playerCamera = Camera.main;
         if (playerCamera == null)
             playerCamera = FindObjectOfType<Camera>();
@@ -73,6 +79,28 @@ public class SnapBuildingSystem : MonoBehaviour
 
         // Find existing blocks in scene
         FindExistingBlocks();
+
+        // Initialize block database if available
+        if (blockDatabase != null && blockPrefabs.Length == 0)
+        {
+            InitializeFromDatabase();
+        }
+    }
+
+    void InitializeFromDatabase()
+    {
+        if (blockDatabase == null) return;
+
+        // Create blockPrefabs array from database
+        blockPrefabs = new GameObject[blockDatabase.GetBlockCount()];
+        for (int i = 0; i < blockDatabase.GetBlockCount(); i++)
+        {
+            BuildingBlockData blockData = blockDatabase.GetBlockData(i);
+            if (blockData != null)
+            {
+                blockPrefabs[i] = blockData.blockPrefab;
+            }
+        }
     }
 
     void Update()
@@ -106,10 +134,25 @@ public class SnapBuildingSystem : MonoBehaviour
         {
             ToggleBuildingMode();
         }
+
+        // Handle building menu toggle (only in building mode)
+        if (buildingMode && Input.GetKeyDown(KeyCode.B))
+        {
+            if (buildingMenu != null)
+            {
+                if (buildingMenu.IsMenuOpen())
+                    buildingMenu.CloseMenu();
+                else
+                    buildingMenu.OpenMenu();
+            }
+        }
     }
 
     void HandleBlockRotation()
     {
+        // Don't allow rotation when menu is open
+        if (buildingMenu != null && buildingMenu.IsMenuOpen()) return;
+
         if (Input.GetKeyDown(KeyCode.R))
         {
             currentRotationY += 45f;
@@ -133,7 +176,6 @@ public class SnapBuildingSystem : MonoBehaviour
 
             if (isSnapping && targetSnapPoint != null)
             {
-                // Align with snap point rotation
                 ghostObject.transform.rotation = targetSnapPoint.GetSnapRotation() * baseRotation;
             }
             else
@@ -165,18 +207,30 @@ public class SnapBuildingSystem : MonoBehaviour
         if (weaponShooting != null)
             weaponShooting.enabled = !buildingMode;
 
+        // Close building menu when exiting building mode
+        if (!buildingMode && buildingMenu != null && buildingMenu.IsMenuOpen())
+        {
+            buildingMenu.CloseMenu();
+        }
+
         Debug.Log($"Building mode: {(buildingMode ? "ON" : "OFF")}");
     }
 
     void UpdateGhostPosition()
     {
+        // Don't update ghost when menu is open
+        if (buildingMenu != null && buildingMenu.IsMenuOpen())
+        {
+            ghostObject.SetActive(false);
+            return;
+        }
+
         Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
 
         // Reset snap state
         targetSnapPoint = null;
         isSnapping = false;
 
-        // Always try freeform placement first
         bool hasValidPosition = false;
 
         if (Physics.Raycast(ray, out RaycastHit hit, maxBuildDistance, buildableLayer))
@@ -220,9 +274,24 @@ public class SnapBuildingSystem : MonoBehaviour
         ghostObject.SetActive(hasValidPosition);
         UpdateGhostRotation();
 
-        // Always allow placement - no restrictions
-        canPlaceBlock = hasValidPosition;
+        // Check if we can afford the current block
+        canPlaceBlock = hasValidPosition && CanAffordCurrentBlock();
         UpdateGhostMaterial();
+    }
+
+    bool CanAffordCurrentBlock()
+    {
+        if (blockDatabase == null || ResourceManager.Instance == null)
+            return true; // Default to true if no resource system
+
+        BuildingBlockData blockData = blockDatabase.GetBlockData(currentBlockIndex);
+        if (blockData == null) return true;
+
+        return blockData.CanAfford(
+            ResourceManager.Instance.GetWood(),
+            ResourceManager.Instance.GetStone(),
+            ResourceManager.Instance.GetClay()
+        );
     }
 
     SnapPoint FindClosestSnapPoint(Vector3 position)
@@ -253,6 +322,9 @@ public class SnapBuildingSystem : MonoBehaviour
 
     void HandleBlockSelection()
     {
+        // Don't allow block selection when menu is open
+        if (buildingMenu != null && buildingMenu.IsMenuOpen()) return;
+
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0)
         {
@@ -277,7 +349,10 @@ public class SnapBuildingSystem : MonoBehaviour
 
     void HandleBlockPlacement()
     {
-        if (Input.GetMouseButtonDown(0) && ghostObject.activeInHierarchy)
+        // Don't allow placement when menu is open
+        if (buildingMenu != null && buildingMenu.IsMenuOpen()) return;
+
+        if (Input.GetMouseButtonDown(0) && ghostObject.activeInHierarchy && canPlaceBlock)
         {
             PlaceBlock();
         }
@@ -288,47 +363,55 @@ public class SnapBuildingSystem : MonoBehaviour
         }
     }
 
-    bool IsValidPlacementPosition()
-    {
-        if (!ghostObject.activeInHierarchy) return false;
-
-        Vector3 checkPosition = ghostObject.transform.position;
-
-        // Check for overlapping blocks
-        Collider[] overlapping = Physics.OverlapBox(
-            checkPosition,
-            Vector3.one * 0.3f,
-            ghostObject.transform.rotation,
-            blockLayer
-        );
-
-        foreach (Collider col in overlapping)
-        {
-            if (col.CompareTag("Block"))
-            {
-                return false;
-            }
-        }
-
-        // Check distance to player
-        float distanceToPlayer = Vector3.Distance(checkPosition, transform.position);
-        if (distanceToPlayer < playerCollisionRadius)
-            return false;
-
-        return true;
-    }
-
     void UpdateGhostMaterial()
     {
         if (ghostRenderer != null)
         {
-            // Always use the normal ghost material - no invalid placement anymore
-            ghostRenderer.material = ghostMaterial;
+            // Use invalid material if can't afford, otherwise use normal ghost material
+            ghostRenderer.material = canPlaceBlock ? ghostMaterial : invalidGhostMaterial;
         }
     }
 
     void PlaceBlock()
     {
+        // Check resource costs
+        BuildingBlockData blockData = null;
+        if (blockDatabase != null)
+        {
+            blockData = blockDatabase.GetBlockData(currentBlockIndex);
+
+            if (blockData != null && ResourceManager.Instance != null)
+            {
+                // Check if we can afford it
+                if (!blockData.CanAfford(
+                    ResourceManager.Instance.GetWood(),
+                    ResourceManager.Instance.GetStone(),
+                    ResourceManager.Instance.GetClay()))
+                {
+                    // Play insufficient resources sound
+                    if (placementAudioSource != null && insufficientResourcesSound != null)
+                    {
+                        placementAudioSource.PlayOneShot(insufficientResourcesSound);
+                    }
+                    Debug.Log($"Cannot afford {blockData.blockName}! Cost: {blockData.GetCostString()}");
+                    return;
+                }
+
+                // Spend the resources
+                bool success = ResourceManager.Instance.SpendResources(
+                    blockData.woodCost,
+                    blockData.stoneCost,
+                    blockData.clayCost
+                );
+
+                if (!success)
+                {
+                    Debug.LogError("Failed to spend resources even though we checked we could afford it!");
+                    return;
+                }
+            }
+        }
+
         Vector3 placePos = ghostObject.transform.position;
         Quaternion placeRotation = ghostObject.transform.rotation;
 
@@ -366,6 +449,9 @@ public class SnapBuildingSystem : MonoBehaviour
                 placementAudioSource.PlayOneShot(placementSound);
             }
         }
+
+        string blockName = blockData != null ? blockData.blockName : "Block";
+        Debug.Log($"Placed {blockName}");
     }
 
     void RemoveBlock()
@@ -418,7 +504,7 @@ public class SnapBuildingSystem : MonoBehaviour
 
         ghostRenderer = renderer;
 
-        if (blockPrefabs[currentBlockIndex] != null)
+        if (currentBlockIndex < blockPrefabs.Length && blockPrefabs[currentBlockIndex] != null)
         {
             MeshFilter prefabFilter = blockPrefabs[currentBlockIndex].GetComponent<MeshFilter>();
             if (prefabFilter != null)
@@ -433,8 +519,37 @@ public class SnapBuildingSystem : MonoBehaviour
         UpdateGhostRotation();
     }
 
+    // New method: Set selected block from menu
+    public void SetSelectedBlock(int blockIndex)
+    {
+        if (blockIndex >= 0 && blockIndex < blockPrefabs.Length)
+        {
+            currentBlockIndex = blockIndex;
+            UpdateGhostMesh();
+
+            // Get block name for feedback
+            string blockName = "Block";
+            if (blockDatabase != null)
+            {
+                BuildingBlockData blockData = blockDatabase.GetBlockData(blockIndex);
+                if (blockData != null)
+                    blockName = blockData.blockName;
+            }
+
+            Debug.Log($"Selected building block: {blockName}");
+        }
+    }
+
+    // Public getters
     public bool IsBuildingMode() => buildingMode;
     public float GetCurrentRotation() => currentRotationY;
     public bool IsSnapping() => isSnapping;
     public SnapPoint GetTargetSnapPoint() => targetSnapPoint;
+    public int GetCurrentBlockIndex() => currentBlockIndex;
+    public BuildingBlockData GetCurrentBlockData()
+    {
+        if (blockDatabase != null)
+            return blockDatabase.GetBlockData(currentBlockIndex);
+        return null;
+    }
 }

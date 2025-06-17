@@ -277,9 +277,9 @@ public class WeaponController : MonoBehaviour
 
         // Add random rotation for realistic effect
         Vector3 randomTorque = new Vector3(
-            Random.Range(-2f, 2f),
-            Random.Range(-2f, 2f),
-            Random.Range(-2f, 2f)
+            Random.Range(-1f, 0.1f),
+            Random.Range(-1f, 0.1f),
+            Random.Range(-1f, 0.1f)
         );
         rb.AddTorque(randomTorque, ForceMode.Impulse);
 
