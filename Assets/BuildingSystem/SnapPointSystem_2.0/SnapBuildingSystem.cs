@@ -135,17 +135,8 @@ public class SnapBuildingSystem : MonoBehaviour
             ToggleBuildingMode();
         }
 
-        // Handle building menu toggle (only in building mode)
-        if (buildingMode && Input.GetKeyDown(KeyCode.B))
-        {
-            if (buildingMenu != null)
-            {
-                if (buildingMenu.IsMenuOpen())
-                    buildingMenu.CloseMenu();
-                else
-                    buildingMenu.OpenMenu();
-            }
-        }
+        // Building menu is now handled by BuildingBlocksMenu script itself
+        // No B key handling here to avoid conflicts
     }
 
     void HandleBlockRotation()

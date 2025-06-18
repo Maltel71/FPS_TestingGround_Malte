@@ -15,7 +15,7 @@ MonoBehaviour:
   blocks:
   - blockName: Box1
     blockPrefab: {fileID: 2622114696918476833, guid: 38f4e081d6c68fb498d42823cbf47d49, type: 3}
-    blockIcon: {fileID: 0}
+    blockIcon: {fileID: 21300000, guid: 254af76c25cba8e4f8c9e753b4b2e57c, type: 3}
     woodCost: 1
     stoneCost: 0
     clayCost: 0
