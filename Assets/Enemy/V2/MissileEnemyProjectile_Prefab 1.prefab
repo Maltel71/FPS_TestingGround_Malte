@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2035608799637349971}
   - component: {fileID: 4143323789148730473}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: MissileThrusterAudioSource
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -143,9 +143,9 @@ GameObject:
   - component: {fileID: 6275335326211570284}
   - component: {fileID: 7142748764861756068}
   - component: {fileID: 8686175479259954281}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: MissileEnemyProjectile_Prefab 1
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -305,7 +305,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7931620478419157415}
   - component: {fileID: 8843792385468901193}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: MissileExplotionAudioSource
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -436,7 +436,7 @@ GameObject:
   - component: {fileID: 2487814579537051551}
   - component: {fileID: 1859592044451753902}
   - component: {fileID: 8416704594965431312}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Point Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -612,6 +612,10 @@ PrefabInstance:
     - target: {fileID: 4322409975390432847, guid: e2e5604b75fd0824d92c2bbada8a898c, type: 3}
       propertyPath: m_Name
       value: TrailRenderer_Prefab
+      objectReference: {fileID: 0}
+    - target: {fileID: 4322409975390432847, guid: e2e5604b75fd0824d92c2bbada8a898c, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

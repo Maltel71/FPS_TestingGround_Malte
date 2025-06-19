@@ -22,3 +22,12 @@ MonoBehaviour:
     description: Simple Box
     isUnlocked: 0
     durability: 0
+  - blockName: Wall1
+    blockPrefab: {fileID: 2699746228642993661, guid: e1e9adaa4f2aa5e429f9bbb6915451be, type: 3}
+    blockIcon: {fileID: 21300000, guid: fd3708cfc4db12849b0e5982597701d2, type: 3}
+    woodCost: 1
+    stoneCost: 0
+    clayCost: 0
+    description: Simple wall
+    isUnlocked: 0
+    durability: 0

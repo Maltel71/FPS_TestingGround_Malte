@@ -12,6 +12,7 @@ public class WeaponController : MonoBehaviour
         [Header("Prefabs")]
         public GameObject equipPrefab;    // The weapon the player holds/uses
         public GameObject pickupPrefab;   // The pickup version when dropped/unequipped
+        public Canvas ammoUICanvas;       // Existing ammo UI canvas for this weapon
 
         [Header("Optional Settings")]
         public Sprite weaponIcon;         // For UI
@@ -60,15 +61,31 @@ public class WeaponController : MonoBehaviour
     [Header("Input Settings")]
     [SerializeField] private KeyCode unequipKey = KeyCode.H;
 
-    [Header("Settings")]
+    [Header("Melee Hit Settings")]
     public float axeRange = 3f;
     public LayerMask treeLayer = 1 << 8;
+
+    [Header("Rigidbody Hit Settings")]
+    [SerializeField] private float minHitDistance = 1f;
+    [SerializeField] private float maxHitDistance = 4f;
+    [SerializeField] private float hitForce = 15f;
+    [SerializeField] private LayerMask hitableLayer = -1; // What objects can be hit
+    [SerializeField] private bool showHitDebugRay = true;
+    [SerializeField] private Color hitDebugRayColor = Color.yellow;
+    [SerializeField] private float debugRayDuration = 1f;
+
+    [Header("Hit Effects")]
+    [SerializeField] private GameObject hitEffectPrefab; // Optional hit effect
+    [SerializeField] private AudioClip[] hitSounds; // Random hit sounds
+    [SerializeField] private float hitSoundVolume = 1f;
+
+    [Header("Settings")]
     [SerializeField] private float pickupRange = 3f;
     [SerializeField] private LayerMask weaponPickupLayer = -1;
     [SerializeField] private float unequipThrowForce = 5f;
 
     [Header("References")]
-    public BuildingSystem buildingSystem;
+    public SnapBuildingSystem snapBuildingSystem;
     public FirstPersonController firstPersonController;
 
     [Header("Audio")]
@@ -89,7 +106,7 @@ public class WeaponController : MonoBehaviour
     void Start()
     {
         playerCamera = Camera.main ?? FindObjectOfType<Camera>();
-        if (buildingSystem == null) buildingSystem = FindObjectOfType<BuildingSystem>();
+        if (snapBuildingSystem == null) snapBuildingSystem = FindObjectOfType<SnapBuildingSystem>();
         if (firstPersonController == null) firstPersonController = FindObjectOfType<FirstPersonController>();
 
         ValidateWeaponDatabase();
@@ -173,7 +190,7 @@ public class WeaponController : MonoBehaviour
 
     bool CanSwitchWeapons()
     {
-        return weaponsEnabled && (buildingSystem == null || !buildingSystem.IsBuildingMode());
+        return weaponsEnabled && (snapBuildingSystem == null || !snapBuildingSystem.IsBuildingMode());
     }
 
     void SwitchToSlot(WeaponType weaponType)
@@ -408,6 +425,7 @@ public class WeaponController : MonoBehaviour
         if (!weaponsEnabled) return;
         currentWeaponType = weaponType;
         DeactivateAllWeapons();
+        DisableAllAmmoUIs(); // Disable all ammo UIs when switching to empty slot
     }
 
     public void SetWeapon(WeaponType weaponType)
@@ -422,6 +440,9 @@ public class WeaponController : MonoBehaviour
 
         if (targetSlot.weaponPrefab != null)
             targetSlot.weaponPrefab.SetActive(true);
+
+        // Setup the appropriate ammo UI for this weapon
+        SetupAmmoUI(weaponType);
 
         if (weaponSwitchAudioSource && weaponSwitchSound)
             weaponSwitchAudioSource.PlayOneShot(weaponSwitchSound);
@@ -440,23 +461,97 @@ public class WeaponController : MonoBehaviour
         if (Input.GetMouseButtonDown(0) && weaponsEnabled && currentWeaponType == WeaponType.Melee)
         {
             WeaponSlot meleeSlot = GetWeaponSlot(WeaponType.Melee);
-            if (meleeSlot.HasWeapon() && meleeSlot.weaponName.ToLower().Contains("axe"))
-                ChopTree();
+            if (meleeSlot.HasWeapon())
+            {
+                // Handle both tree chopping and general object hitting
+                PerformMeleeAttack();
+            }
         }
     }
 
-    void ChopTree()
+    void PerformMeleeAttack()
     {
+        WeaponSlot meleeSlot = GetWeaponSlot(WeaponType.Melee);
+        if (!meleeSlot.HasWeapon()) return;
+
+        string weaponName = meleeSlot.weaponName.ToLower();
+
+        // Determine hit distance based on weapon type
+        float hitDistance = weaponName.Contains("axe") ? axeRange :
+                           weaponName.Contains("knife") ? minHitDistance :
+                           maxHitDistance;
+
         Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
-        if (!Physics.Raycast(ray, out RaycastHit hit, axeRange, treeLayer)) return;
 
-        Tree tree = hit.collider.GetComponent<Tree>() ??
-                   hit.collider.GetComponentInParent<Tree>();
-        TreeLog treeLog = hit.collider.GetComponent<TreeLog>() ??
-                         hit.collider.GetComponentInParent<TreeLog>();
+        // Show debug ray if enabled
+        if (showHitDebugRay)
+        {
+            Debug.DrawRay(ray.origin, ray.direction * hitDistance, hitDebugRayColor, debugRayDuration);
+        }
 
-        if (tree != null) tree.TakeDamage(1);
-        else if (treeLog != null) treeLog.TakeDamage(1);
+        bool hitSomething = false;
+
+        // Check for trees first (existing functionality)
+        if (weaponName.Contains("axe") && Physics.Raycast(ray, out RaycastHit treeHit, axeRange, treeLayer))
+        {
+            Tree tree = treeHit.collider.GetComponent<Tree>() ??
+                       treeHit.collider.GetComponentInParent<Tree>();
+            TreeLog treeLog = treeHit.collider.GetComponent<TreeLog>() ??
+                             treeHit.collider.GetComponentInParent<TreeLog>();
+
+            if (tree != null)
+            {
+                tree.TakeDamage(1);
+                hitSomething = true;
+            }
+            else if (treeLog != null)
+            {
+                treeLog.TakeDamage(1);
+                hitSomething = true;
+            }
+        }
+
+        // Check for general rigidbody objects within the specified distance range
+        if (!hitSomething && Physics.Raycast(ray, out RaycastHit hit, hitDistance, hitableLayer))
+        {
+            float distance = Vector3.Distance(playerCamera.transform.position, hit.point);
+
+            // Only hit if within our specified range
+            if (distance >= minHitDistance && distance <= maxHitDistance)
+            {
+                Rigidbody rb = hit.collider.GetComponent<Rigidbody>();
+
+                if (rb != null && !rb.isKinematic)
+                {
+                    // Calculate hit direction (from player to hit point)
+                    Vector3 hitDirection = (hit.point - playerCamera.transform.position).normalized;
+
+                    // Apply force at the hit point for more realistic physics
+                    rb.AddForceAtPosition(hitDirection * hitForce, hit.point, ForceMode.Impulse);
+
+                    // Optional: Add some upward force for more dramatic effect
+                    rb.AddForce(Vector3.up * (hitForce * 0.3f), ForceMode.Impulse);
+
+                    hitSomething = true;
+
+                    Debug.Log($"Hit {hit.collider.name} with {meleeSlot.weaponName} at distance {distance:F2}m");
+
+                    // Spawn hit effect if available
+                    if (hitEffectPrefab != null)
+                    {
+                        GameObject effect = Instantiate(hitEffectPrefab, hit.point, Quaternion.LookRotation(hit.normal));
+                        Destroy(effect, 2f);
+                    }
+                }
+            }
+        }
+
+        // Play hit sound if we hit something
+        if (hitSomething && hitSounds.Length > 0 && weaponSwitchAudioSource != null)
+        {
+            AudioClip randomHitSound = hitSounds[Random.Range(0, hitSounds.Length)];
+            weaponSwitchAudioSource.PlayOneShot(randomHitSound, hitSoundVolume);
+        }
     }
 
     void DropWeapon(WeaponType weaponType, Vector3 dropPosition)
@@ -486,11 +581,95 @@ public class WeaponController : MonoBehaviour
         slot.ClearWeapon();
     }
 
+    // New method to setup ammo UI when switching weapons
+    void SetupAmmoUI(WeaponType weaponType)
+    {
+        WeaponSlot slot = GetWeaponSlot(weaponType);
+
+        // Disable all ammo UIs first
+        DisableAllAmmoUIs();
+
+        if (!slot.HasWeapon() || slot.weaponData == null || slot.weaponData.ammoUICanvas == null)
+        {
+            Debug.Log($"SetupAmmoUI: Cannot setup UI for {weaponType} - missing data");
+            return;
+        }
+
+        Debug.Log($"SetupAmmoUI: Setting up UI for {slot.weaponName}");
+        Debug.Log($"Canvas name: {slot.weaponData.ammoUICanvas.name}");
+        Debug.Log($"Canvas active before: {slot.weaponData.ammoUICanvas.gameObject.activeSelf}");
+
+        // Enable the ammo UI canvas for this weapon
+        slot.weaponData.ammoUICanvas.gameObject.SetActive(true);
+
+        Debug.Log($"Canvas active after: {slot.weaponData.ammoUICanvas.gameObject.activeSelf}");
+
+        // Get the AmmoUI component - check both on canvas and in children
+        AmmoUI ammoUIComponent = slot.weaponData.ammoUICanvas.GetComponent<AmmoUI>();
+        if (ammoUIComponent == null)
+        {
+            ammoUIComponent = slot.weaponData.ammoUICanvas.GetComponentInChildren<AmmoUI>();
+        }
+
+        Debug.Log($"AmmoUI component found: {ammoUIComponent != null}");
+
+        if (ammoUIComponent != null)
+        {
+            Debug.Log($"Weapon prefab name: {slot.weaponPrefab?.name}");
+
+            // Find the WeaponShooting component on the weapon OR its children
+            WeaponShooting weaponShooting = slot.weaponPrefab?.GetComponentInChildren<WeaponShooting>();
+            Debug.Log($"WeaponShooting component found: {weaponShooting != null}");
+
+            if (weaponShooting != null)
+            {
+                ammoUIComponent.SetWeaponShooting(weaponShooting);
+                Debug.Log($"WeaponController: Connected {slot.weaponName} to its ammo UI");
+            }
+            else
+            {
+                Debug.LogWarning($"WeaponController: No WeaponShooting component found on {slot.weaponName} or its children");
+                Debug.LogWarning($"Make sure the WeaponShooting component is on the weapon prefab or one of its children: {slot.weaponData.equipPrefab?.name}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"WeaponController: No AmmoUI component found on canvas for {slot.weaponName}");
+        }
+
+        Debug.Log($"Enabled ammo UI for {slot.weaponName}");
+    }
+
+    void DisableAllAmmoUIs()
+    {
+        // Disable all weapon ammo UIs from the database
+        foreach (WeaponData weaponData in weaponDatabase)
+        {
+            if (weaponData.ammoUICanvas != null)
+            {
+                weaponData.ammoUICanvas.gameObject.SetActive(false);
+            }
+        }
+
+        // Also disable building hammer UI if it exists
+        if (defaultHammerData != null && defaultHammerData.ammoUICanvas != null)
+        {
+            defaultHammerData.ammoUICanvas.gameObject.SetActive(false);
+        }
+    }
+
     public void SetWeaponsEnabled(bool enabled)
     {
         weaponsEnabled = enabled;
-        if (!enabled) DeactivateAllWeapons();
-        else if (GetWeaponSlot(currentWeaponType).HasWeapon()) SetWeapon(currentWeaponType);
+        if (!enabled)
+        {
+            DeactivateAllWeapons();
+            DisableAllAmmoUIs();
+        }
+        else if (GetWeaponSlot(currentWeaponType).HasWeapon())
+        {
+            SetWeapon(currentWeaponType);
+        }
     }
 
     public void OnBuildingModeChanged(bool isBuildingMode)
@@ -508,6 +687,11 @@ public class WeaponController : MonoBehaviour
         }
     }
 
+    void OnDestroy()
+    {
+        DisableAllAmmoUIs();
+    }
+
     // Public getters
     public WeaponType GetCurrentWeaponType() => currentWeaponType;
     public bool HasWeapon(WeaponType weaponType) => GetWeaponSlot(weaponType).HasWeapon();
@@ -519,9 +703,21 @@ public class WeaponController : MonoBehaviour
     public void SetUnequipKey(KeyCode newKey) => unequipKey = newKey;
     public KeyCode GetUnequipKey() => unequipKey;
 
+    // Public methods to adjust hit settings at runtime
+    public void SetHitForce(float force) => hitForce = force;
+    public void SetHitDistance(float min, float max)
+    {
+        minHitDistance = min;
+        maxHitDistance = max;
+    }
+    public float GetHitForce() => hitForce;
+    public float GetMinHitDistance() => minHitDistance;
+    public float GetMaxHitDistance() => maxHitDistance;
+
     // Debug methods
     [ContextMenu("Switch to Primary")] public void DebugSwitchToPrimary() => SwitchToSlot(WeaponType.Primary);
     [ContextMenu("Switch to Melee")] public void DebugSwitchToMelee() => SwitchToSlot(WeaponType.Melee);
     [ContextMenu("Cycle Weapons")] public void DebugCycleWeapons() => CycleWeapons();
     [ContextMenu("Unequip Current Weapon")] public void DebugUnequipWeapon() => UnequipCurrentWeapon();
+    [ContextMenu("Test Melee Attack")] public void DebugMeleeAttack() => PerformMeleeAttack();
 }

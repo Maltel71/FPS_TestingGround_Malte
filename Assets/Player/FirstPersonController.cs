@@ -27,6 +27,7 @@ public class FirstPersonController : MonoBehaviour
     [Header("References")]
     [SerializeField] private PauseMenuManager pauseMenuManager;
     [SerializeField] private WeaponController weaponController;
+    [SerializeField] private BuildingBlocksMenu buildingBlocksMenu;
 
     [Header("Pickup Settings")]
     [SerializeField] private float pickupRange = 3f;
@@ -67,6 +68,10 @@ public class FirstPersonController : MonoBehaviour
         if (weaponController == null)
             weaponController = FindObjectOfType<WeaponController>();
 
+        // Find building blocks menu if not assigned
+        if (buildingBlocksMenu == null)
+            buildingBlocksMenu = FindObjectOfType<BuildingBlocksMenu>();
+
         // Store original values
         standingHeight = controller.height;
         standingCameraPos = cameraTransform.localPosition;
@@ -80,8 +85,9 @@ public class FirstPersonController : MonoBehaviour
 
     private void Update()
     {
-        // Check if options menu is open - if so, skip all input handling
-        if (pauseMenuManager != null && pauseMenuManager.IsOptionsMenuOpen())
+        // Check if any menu is open - if so, skip all input handling including look
+        if ((pauseMenuManager != null && pauseMenuManager.IsOptionsMenuOpen()) ||
+            (buildingBlocksMenu != null && buildingBlocksMenu.IsMenuOpen()))
             return;
 
         isGrounded = controller.isGrounded;

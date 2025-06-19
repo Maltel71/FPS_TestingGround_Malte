@@ -36,6 +36,10 @@ public class BuildingBlocksMenu : MonoBehaviour
     private int selectedBlockIndex = 0;
     private bool isMenuOpen = false;
 
+    // Store original cursor state
+    private CursorLockMode originalCursorLockMode;
+    private bool originalCursorVisible;
+
     void Start()
     {
         // Find building system if not assigned
@@ -54,6 +58,10 @@ public class BuildingBlocksMenu : MonoBehaviour
 
         // Update resource display
         UpdateResourceDisplay();
+
+        // Store initial cursor state
+        originalCursorLockMode = Cursor.lockState;
+        originalCursorVisible = Cursor.visible;
     }
 
     void SetupManualButtons()
@@ -103,7 +111,11 @@ public class BuildingBlocksMenu : MonoBehaviour
         isMenuOpen = true;
         menuPanel.SetActive(true);
 
-        // Unlock cursor for menu interaction
+        // Store current cursor state before changing it
+        originalCursorLockMode = Cursor.lockState;
+        originalCursorVisible = Cursor.visible;
+
+        // Unlock cursor for menu interaction (same as pause menu)
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
@@ -113,7 +125,7 @@ public class BuildingBlocksMenu : MonoBehaviour
         // Update resource display
         UpdateResourceDisplay();
 
-        Debug.Log("Building Blocks Menu opened");
+        Debug.Log("Building Blocks Menu opened - Player look controls disabled");
     }
 
     public void CloseMenu()
@@ -123,14 +135,14 @@ public class BuildingBlocksMenu : MonoBehaviour
         isMenuOpen = false;
         menuPanel.SetActive(false);
 
-        // Lock cursor back for gameplay
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        // Restore original cursor state (same as pause menu)
+        Cursor.lockState = originalCursorLockMode;
+        Cursor.visible = originalCursorVisible;
 
         // Play close sound
         PlaySound(menuCloseSound);
 
-        Debug.Log("Building Blocks Menu closed");
+        Debug.Log("Building Blocks Menu closed - Player look controls restored");
     }
 
     public void OnBlockButtonClicked(int blockIndex)
