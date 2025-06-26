@@ -212,6 +212,14 @@ public class WeaponShooting : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit, range, shootableLayers))
         {
+            // Enemy damage
+            EnemyHealth enemyHealth = hit.collider.GetComponent<EnemyHealth>();
+            if (enemyHealth != null)
+            {
+                enemyHealth.TakeDamage(25f); // Adjust damage as needed
+            }
+
+            // Breakable objects
             BreakableCube breakable = hit.collider.GetComponent<BreakableCube>();
             if (breakable != null)
             {
