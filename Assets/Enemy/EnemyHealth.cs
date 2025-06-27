@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class EnemyHealth : MonoBehaviour
 {
@@ -10,7 +11,8 @@ public class EnemyHealth : MonoBehaviour
     public GameObject deathEffectPrefab;
     public AudioClip hurtSound;
     public AudioClip deathSound;
-    public float deathDelay = 2f;
+    public float deathAnimationTime = 2f; // How long death animation takes
+    public float deathDelay = 1f; // Extra delay after animation before destroying
 
     [Header("Drops")]
     public GameObject[] itemDrops; // Items to drop on death
@@ -57,7 +59,7 @@ public class EnemyHealth : MonoBehaviour
             // Force enemy to detect player when damaged
             if (enemyAI != null)
             {
-                enemyAI.ForceDetectPlayer();
+                enemyAI.TakeDamage(damageAmount); // Pass damage to AI
             }
         }
 
@@ -69,29 +71,60 @@ public class EnemyHealth : MonoBehaviour
         if (isDead) return;
 
         isDead = true;
+        Debug.Log($"{gameObject.name} died!");
 
-        // Disable AI
-        if (enemyAI != null)
-        {
-            enemyAI.enabled = false;
-        }
+        // Start the death sequence
+        StartCoroutine(DeathSequence());
+    }
 
-        // Play death sound
+    IEnumerator DeathSequence()
+    {
+        // 1. DON'T disable AI immediately - let it handle death animation
+        // The AI script will detect IsDead() and stop movement/attacks itself
+
+        // 2. Play death sound immediately
         if (deathSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(deathSound);
         }
 
-        // Spawn death effect
+        // 3. Trigger death animation (EnemyAI will handle this when it detects IsDead())
+        // The animation system will automatically trigger when it sees isDead = true
+
+        // 4. Drop items immediately (so they don't disappear with the enemy)
+        DropItems();
+
+        // 5. Wait for death animation to complete
+        yield return new WaitForSeconds(deathAnimationTime);
+
+        // 6. Spawn death effect after animation
         if (deathEffectPrefab != null)
         {
             GameObject effect = Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
             Destroy(effect, 5f);
         }
 
-        // Drop items
-        DropItems();
+        // 7. Disable physics and visual components (but keep object for animation)
+        DisablePhysicsAndVisuals();
 
+        // 8. Disable AI after animation completes
+        if (enemyAI != null)
+        {
+            enemyAI.enabled = false;
+        }
+
+        // 9. Wait additional delay if needed
+        if (deathDelay > 0)
+        {
+            yield return new WaitForSeconds(deathDelay);
+        }
+
+        // 10. Finally destroy the entire game object
+        Destroy(gameObject);
+    }
+
+    void DisablePhysicsAndVisuals()
+    {
         // Disable movement and collisions
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
@@ -99,24 +132,19 @@ public class EnemyHealth : MonoBehaviour
             rb.isKinematic = true;
         }
 
-        // Hide mesh renderers
-        MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>();
-        foreach (MeshRenderer renderer in renderers)
-        {
-            renderer.enabled = false;
-        }
-
-        // Disable colliders
+        // Disable colliders (but keep the object for animation)
         Collider[] colliders = GetComponentsInChildren<Collider>();
         foreach (Collider col in colliders)
         {
             col.enabled = false;
         }
 
-        Debug.Log("Enemy died!");
-
-        // Destroy after delay
-        Destroy(gameObject, deathDelay);
+        // Optional: You can choose to hide mesh renderers here or let the animation handle it
+        // MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>();
+        // foreach (MeshRenderer renderer in renderers)
+        // {
+        //     renderer.enabled = false;
+        // }
     }
 
     void DropItems()
@@ -151,6 +179,18 @@ public class EnemyHealth : MonoBehaviour
         currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
     }
 
+    // Method to set health directly (useful for initialization)
+    public void SetHealth(float newHealth)
+    {
+        currentHealth = Mathf.Clamp(newHealth, 0f, maxHealth);
+    }
+
+    // Public getters
     public bool IsDead() { return isDead; }
     public float GetHealthPercentage() { return currentHealth / maxHealth; }
+    public float GetCurrentHealth() { return currentHealth; }
+    public float GetMaxHealth() { return maxHealth; }
+
+    // Method to get total death time (useful for other systems)
+    public float GetTotalDeathTime() { return deathAnimationTime + deathDelay; }
 }

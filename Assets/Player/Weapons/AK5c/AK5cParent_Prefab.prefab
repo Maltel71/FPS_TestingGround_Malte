@@ -88,6 +88,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Ak5c
       objectReference: {fileID: 0}
+    - target: {fileID: 8140507388889306580, guid: 12d130453d9001c4ea4460f41d3049f4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
