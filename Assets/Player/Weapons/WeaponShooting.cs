@@ -55,6 +55,10 @@ public class WeaponShooting : MonoBehaviour
     [SerializeField] private GameObject impactVFXPrefab;
     [SerializeField] private float impactVFXLifetime = 2f;
 
+    [Header("Sound Detection")]
+    [SerializeField] private bool notifyEnemiesOfGunshots = true; // Toggle for sound detection
+    [SerializeField] private bool showSoundDebug = false; // Debug logs for sound system
+
     [Header("Debug")]
     [SerializeField] private bool showDebugRay = true;
     [SerializeField] private float debugRayDuration = 1f;
@@ -189,6 +193,12 @@ public class WeaponShooting : MonoBehaviour
             StartCoroutine(MuzzleFlashLightCoroutine());
         }
 
+        // Notify enemies of gunshot sound
+        if (notifyEnemiesOfGunshots)
+        {
+            NotifyEnemiesOfGunshot();
+        }
+
         Vector3 rayOrigin = playerCamera.transform.position;
         Vector3 rayDirection = playerCamera.transform.forward;
 
@@ -241,6 +251,42 @@ public class WeaponShooting : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Notify all enemies of the gunshot sound
+    /// </summary>
+    private void NotifyEnemiesOfGunshot()
+    {
+        // Get the shot position - use barrel tip if available, otherwise camera position
+        Vector3 shotPosition = barrelTip != null ? barrelTip.position : playerCamera.transform.position;
+
+        // Method 1: Use SoundManager if available (recommended)
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.NotifyGunshotSound(shotPosition);
+
+            if (showSoundDebug)
+                Debug.Log($"WeaponShooting: Notified SoundManager of gunshot at {shotPosition}");
+        }
+        else
+        {
+            // Method 2: Direct notification as fallback
+            EnemyAI[] enemies = FindObjectsOfType<EnemyAI>();
+            int notifiedCount = 0;
+
+            foreach (EnemyAI enemy in enemies)
+            {
+                if (enemy != null && enemy.gameObject.activeInHierarchy)
+                {
+                    enemy.OnGunshotHeard(shotPosition);
+                    notifiedCount++;
+                }
+            }
+
+            if (showSoundDebug)
+                Debug.Log($"WeaponShooting: Directly notified {notifiedCount} enemies of gunshot at {shotPosition}");
+        }
+    }
+
     private IEnumerator ReloadCoroutine()
     {
         isReloading = true;
@@ -263,7 +309,27 @@ public class WeaponShooting : MonoBehaviour
         muzzleFlashLight.enabled = false;
     }
 
+    // Public getters for ammo system
     public int GetCurrentAmmo() => currentAmmo;
     public int GetMaxAmmo() => maxAmmoPerMag;
     public bool IsReloading() => isReloading;
+
+    // Public methods for sound system configuration
+    public void SetSoundNotificationEnabled(bool enabled)
+    {
+        notifyEnemiesOfGunshots = enabled;
+    }
+
+    public bool IsSoundNotificationEnabled()
+    {
+        return notifyEnemiesOfGunshots;
+    }
+
+    // Manual method to trigger gunshot sound notification (useful for testing)
+    [ContextMenu("Test Gunshot Sound Notification")]
+    public void TestGunshotNotification()
+    {
+        NotifyEnemiesOfGunshot();
+        Debug.Log("Manual gunshot sound notification triggered for testing");
+    }
 }

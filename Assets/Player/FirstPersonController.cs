@@ -41,7 +41,7 @@ public class FirstPersonController : MonoBehaviour
     private float xRotation = 0f;
     private bool isGrounded;
     private bool isSprinting;
-    private bool isCrouching;
+    private bool isCrouching; // Now accessible via public getter
     private float standingHeight;
     private Vector3 standingCameraPos;
     private Carriable carriedObject;
@@ -269,12 +269,6 @@ public class FirstPersonController : MonoBehaviour
         }
     }
 
-    // Public getter to check if player is carrying something
-    public bool IsCarryingSomething()
-    {
-        return carriedObject != null;
-    }
-
     private void UpdateCarriedObject()
     {
         if (carriedObject != null)
@@ -294,6 +288,53 @@ public class FirstPersonController : MonoBehaviour
     private void UpdateCarryPosition()
     {
         carryPosition = cameraTransform.position + cameraTransform.forward * carryDistance;
+    }
+
+    // Public getters for other systems to access player state
+    public bool IsCarryingSomething()
+    {
+        return carriedObject != null;
+    }
+
+    /// <summary>
+    /// Returns true if the player is currently crouching
+    /// </summary>
+    public bool IsCrouching()
+    {
+        return isCrouching;
+    }
+
+    /// <summary>
+    /// Returns true if the player is currently sprinting
+    /// </summary>
+    public bool IsSprinting()
+    {
+        return isSprinting;
+    }
+
+    /// <summary>
+    /// Get the player's current movement speed
+    /// </summary>
+    public float GetCurrentMovementSpeed()
+    {
+        Vector3 horizontalVelocity = new Vector3(controller.velocity.x, 0, controller.velocity.z);
+        return horizontalVelocity.magnitude;
+    }
+
+    /// <summary>
+    /// Returns true if the player is currently moving
+    /// </summary>
+    public bool IsMoving()
+    {
+        return GetCurrentMovementSpeed() > 0.1f;
+    }
+
+    /// <summary>
+    /// Returns true if the player is grounded
+    /// </summary>
+    public bool IsGrounded()
+    {
+        return isGrounded;
     }
 
     // Public method to change keybinds at runtime (useful for settings menu)

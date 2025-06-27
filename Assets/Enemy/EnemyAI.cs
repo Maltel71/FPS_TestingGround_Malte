@@ -12,6 +12,12 @@ public class EnemyAI : MonoBehaviour
     public LayerMask playerLayer = -1;
     public LayerMask groundLayer = -1;
 
+    [Header("Sound Detection")]
+    public float footstepHearingRange = 8f; // How far enemy can hear footsteps
+    public float gunshotHearingRange = 25f; // How far enemy can hear gunshots
+    public float soundAlertDuration = 5f; // How long to investigate sounds
+    public bool showSoundRanges = true; // Show sound ranges in gizmos
+
     [Header("Movement")]
     public float walkPointRange = 10f;
     public float rotationSpeed = 180f; // Degrees per second when tracking player
@@ -49,21 +55,27 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private string currentStateDisplay = "Patrol";
     [SerializeField] private float distanceToPlayer = 0f;
     [SerializeField] private bool playerInSight = false;
+    [SerializeField] private bool playerHeard = false; // New: tracks if player was heard
     [SerializeField] private float timeSinceLastSeen = 0f;
+    [SerializeField] private float timeSinceLastHeard = 0f; // New: tracks sound detection
     [SerializeField] private bool isAttacking = false;
 
     // Private variables
     private Transform player;
+    private FirstPersonController playerController; // New: reference to player controller
     private Vector3 walkPoint;
     private bool walkPointSet;
     private bool alreadyAttacked;
     private bool takeDamage;
     private Vector3 lastKnownPlayerPosition;
     private Vector3 damageSourcePosition; // New: where damage came from
+    private Vector3 lastHeardSoundPosition; // New: where sound came from
     private float lastSeenPlayerTime;
+    private float lastHeardSoundTime; // New: when sound was last heard
     private float currentInaccuracy = 0f;
     private float lastShotTime = 0f;
     private bool hasEverSeenPlayer = false; // New: track if we've ever seen the player
+    private bool isInvestigatingSound = false; // New: track if investigating sound
 
     // Animation parameter hashes for performance
     private int speedHash;
@@ -78,7 +90,10 @@ public class EnemyAI : MonoBehaviour
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
+        {
             player = playerObj.transform;
+            playerController = playerObj.GetComponent<FirstPersonController>();
+        }
 
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
@@ -91,7 +106,7 @@ public class EnemyAI : MonoBehaviour
         InitializeAnimationParameters();
 
         if (showDebug)
-            Debug.Log("Enemy AI initialized with NavMesh and Animation support");
+            Debug.Log("Enemy AI initialized with NavMesh, Animation, and Sound Detection support");
     }
 
     void InitializeAnimationParameters()
@@ -155,14 +170,19 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
-        // Check player detection
+        // Check player detection (sight and sound)
         bool playerInSightRange = CanSeePlayer();
+        bool playerInSoundRange = CanHearPlayer(); // New: sound detection
         float distanceToPlayerActual = Vector3.Distance(transform.position, player.position);
         bool playerInAttackRange = playerInSightRange && distanceToPlayerActual < attackRange;
-        bool hasLostPlayer = !playerInSightRange && !takeDamage && (Time.time - lastSeenPlayerTime > lostPlayerTimeout);
+
+        // Player is lost if we can't see them, can't hear them, took no damage, and enough time has passed
+        bool hasLostPlayer = !playerInSightRange && !playerInSoundRange && !takeDamage &&
+                            (Time.time - lastSeenPlayerTime > lostPlayerTimeout) &&
+                            (Time.time - lastHeardSoundTime > soundAlertDuration);
 
         // Update Inspector status display
-        UpdateInspectorInfo(playerInSightRange);
+        UpdateInspectorInfo(playerInSightRange, playerInSoundRange);
 
         // Update accuracy recovery
         if (!alreadyAttacked && Time.time - lastShotTime > 1f)
@@ -171,14 +191,14 @@ public class EnemyAI : MonoBehaviour
         }
 
         // State logic with proper lost player handling
-        if (hasLostPlayer)
+        if (hasLostPlayer && !isInvestigatingSound)
         {
             // Lost player completely - return to patrol
             if (showDebug && Time.frameCount % 60 == 0)
                 Debug.Log("Lost player completely - returning to patrol");
             Patroling();
         }
-        else if (!playerInSightRange && !takeDamage && lastSeenPlayerTime == 0f)
+        else if (!playerInSightRange && !playerInSoundRange && !takeDamage && lastSeenPlayerTime == 0f && lastHeardSoundTime == 0f)
         {
             // Never detected player - normal patrol
             Patroling();
@@ -193,10 +213,12 @@ public class EnemyAI : MonoBehaviour
             // Close enough and can see - attack
             AttackPlayer();
         }
-        else if (!playerInSightRange && (takeDamage || Time.time - lastSeenPlayerTime <= lostPlayerTimeout))
+        else if (!playerInSightRange && (takeDamage || playerInSoundRange ||
+                 Time.time - lastSeenPlayerTime <= lostPlayerTimeout ||
+                 Time.time - lastHeardSoundTime <= soundAlertDuration))
         {
-            // Lost sight but recently saw player - go to last known position
-            SearchLastKnownPosition();
+            // Lost sight but recently saw/heard player or took damage - investigate
+            InvestigateLastKnownPosition();
         }
         else
         {
@@ -210,71 +232,76 @@ public class EnemyAI : MonoBehaviour
         UpdateAnimations();
     }
 
-    void UpdateAnimations()
+    // New method: Check if player can be heard
+    bool CanHearPlayer()
     {
-        if (animator == null) return;
+        if (player == null || playerController == null) return false;
 
-        // Check for death first - this overrides all other animations
-        EnemyHealth enemyHealth = GetComponent<EnemyHealth>();
-        if (enemyHealth != null && enemyHealth.IsDead())
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+
+        // Check for footstep sounds
+        if (distanceToPlayer <= footstepHearingRange)
         {
-            HandleDeathAnimation();
-            return; // Don't update other animations if dead
+            // Only hear if player is moving and not crouching
+            Vector3 playerVelocity = playerController.GetComponent<CharacterController>().velocity;
+            float playerSpeed = new Vector3(playerVelocity.x, 0, playerVelocity.z).magnitude;
+
+            // Get crouch state - we'll need to add a public getter to FirstPersonController
+            bool isPlayerCrouching = IsPlayerCrouching();
+
+            if (playerSpeed > 0.5f && !isPlayerCrouching) // Player is moving and not crouching
+            {
+                lastHeardSoundTime = Time.time;
+                lastHeardSoundPosition = player.position;
+
+                if (showDebug && Time.frameCount % 60 == 0)
+                    Debug.Log($"Enemy heard player footsteps at distance {distanceToPlayer:F1}m");
+
+                return true;
+            }
         }
 
-        // Update movement speed
-        float currentSpeed = navAgent.velocity.magnitude;
-        if (HasParameter(speedParameterName))
-        {
-            animator.SetFloat(speedHash, currentSpeed);
-        }
-
-        // Update attacking state
-        if (HasParameter(isAttackingParameterName))
-        {
-            animator.SetBool(isAttackingHash, isAttacking);
-        }
+        return false;
     }
 
-    void HandleDeathAnimation()
+    // Helper method to check if player is crouching
+    // Note: You'll need to add a public getter to FirstPersonController for this
+    bool IsPlayerCrouching()
     {
-        // Trigger death animation only once
-        if (!hasTriggeredDeath)
+        // This is a simple approach - you might need to modify FirstPersonController
+        // to expose the isCrouching variable publicly
+        if (playerController != null)
         {
-            hasTriggeredDeath = true;
-
-            // Trigger the death animation
-            if (HasParameter(deathTriggerParameterName))
+            // For now, we'll use a simple height check as approximation
+            CharacterController playerCC = playerController.GetComponent<CharacterController>();
+            if (playerCC != null)
             {
-                animator.SetTrigger(deathTriggerHash);
+                // Assume normal height is around 2, crouch height is around 1.2
+                return playerCC.height < 1.5f;
+            }
+        }
+        return false;
+    }
+
+    // New method: Handle gunshot sounds (called from WeaponShooting)
+    public void OnGunshotHeard(Vector3 shotPosition)
+    {
+        float distanceToShot = Vector3.Distance(transform.position, shotPosition);
+
+        if (distanceToShot <= gunshotHearingRange)
+        {
+            lastHeardSoundTime = Time.time;
+            lastHeardSoundPosition = shotPosition;
+
+            // Gunshots are more urgent than footsteps
+            if (!hasEverSeenPlayer)
+            {
+                lastKnownPlayerPosition = shotPosition;
+                lastSeenPlayerTime = Time.time; // Treat gunshot as "seeing" for search logic
             }
 
-            // Set dead state
-            if (HasParameter(isDeadParameterName))
-            {
-                animator.SetBool(isDeadHash, true);
-            }
-
-            // Stop all movement
-            if (navAgent != null)
-            {
-                navAgent.isStopped = true;
-                navAgent.velocity = Vector3.zero;
-            }
-
-            // Set speed to 0
-            if (HasParameter(speedParameterName))
-            {
-                animator.SetFloat(speedHash, 0f);
-            }
-
-            // Stop attacking
-            if (HasParameter(isAttackingParameterName))
-            {
-                animator.SetBool(isAttackingHash, false);
-            }
-
-            Debug.Log($"{gameObject.name} triggered death animation");
+            if (showDebug)
+                Debug.Log($"Enemy heard gunshot at distance {distanceToShot:F1}m");
         }
     }
 
@@ -317,6 +344,8 @@ public class EnemyAI : MonoBehaviour
 
     void Patroling()
     {
+        isInvestigatingSound = false;
+
         if (!walkPointSet)
             SearchWalkPoint();
 
@@ -343,36 +372,46 @@ public class EnemyAI : MonoBehaviour
     {
         navAgent.SetDestination(player.position);
         navAgent.isStopped = false;
+        isInvestigatingSound = false;
 
         if (showDebug && Time.frameCount % 60 == 0)
             Debug.Log("Chasing player");
     }
 
-    void SearchLastKnownPosition()
+    void InvestigateLastKnownPosition()
     {
         Vector3 searchTarget;
+        isInvestigatingSound = true;
 
-        // Decide where to search based on available information
-        if (hasEverSeenPlayer && lastKnownPlayerPosition != Vector3.zero)
+        // Prioritize the most recent information
+        if (hasEverSeenPlayer && lastKnownPlayerPosition != Vector3.zero &&
+            (lastSeenPlayerTime > lastHeardSoundTime || lastHeardSoundPosition == Vector3.zero))
         {
-            // Prefer visual detection position if we've actually seen the player
+            // Prefer visual detection position if we've seen the player recently
             searchTarget = lastKnownPlayerPosition;
             if (showDebug && Time.frameCount % 60 == 0)
-                Debug.Log($"Searching last SEEN position - {Time.time - lastSeenPlayerTime:F1}s ago");
+                Debug.Log($"Investigating last SEEN position - {Time.time - lastSeenPlayerTime:F1}s ago");
+        }
+        else if (lastHeardSoundPosition != Vector3.zero && Time.time - lastHeardSoundTime <= soundAlertDuration)
+        {
+            // Use sound position if we heard something recently
+            searchTarget = lastHeardSoundPosition;
+            if (showDebug && Time.frameCount % 60 == 0)
+                Debug.Log($"Investigating sound position - {Time.time - lastHeardSoundTime:F1}s ago");
         }
         else if (damageSourcePosition != Vector3.zero)
         {
-            // Use damage source if we've never seen the player but took damage
+            // Use damage source if we've been shot but can't see the player
             searchTarget = damageSourcePosition;
             if (showDebug && Time.frameCount % 60 == 0)
-                Debug.Log("Searching damage source position (shot from behind)");
+                Debug.Log("Investigating damage source position");
         }
         else
         {
             // Fallback to current player position
             searchTarget = player.position;
             if (showDebug && Time.frameCount % 60 == 0)
-                Debug.Log("Searching current player position (fallback)");
+                Debug.Log("Investigating current player position (fallback)");
         }
 
         navAgent.SetDestination(searchTarget);
@@ -383,6 +422,7 @@ public class EnemyAI : MonoBehaviour
     {
         navAgent.SetDestination(transform.position);
         navAgent.isStopped = true;
+        isInvestigatingSound = false;
 
         // Continuously rotate to face player during attack
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
@@ -511,22 +551,26 @@ public class EnemyAI : MonoBehaviour
         takeDamage = false;
     }
 
-    void UpdateInspectorInfo(bool playerDetected)
+    void UpdateInspectorInfo(bool playerDetected, bool playerHeardNow)
     {
         // Update state display
         float distanceToPlayerActual = Vector3.Distance(transform.position, player.position);
-        bool hasLostPlayer = !playerDetected && !takeDamage && (Time.time - lastSeenPlayerTime > lostPlayerTimeout);
+        bool hasLostPlayer = !playerDetected && !playerHeardNow && !takeDamage &&
+                            (Time.time - lastSeenPlayerTime > lostPlayerTimeout) &&
+                            (Time.time - lastHeardSoundTime > soundAlertDuration);
 
-        if (hasLostPlayer)
+        if (hasLostPlayer && !isInvestigatingSound)
             currentStateDisplay = "Patrol";
-        else if (!playerDetected && !takeDamage && lastSeenPlayerTime == 0f)
+        else if (!playerDetected && !playerHeardNow && !takeDamage && lastSeenPlayerTime == 0f && lastHeardSoundTime == 0f)
             currentStateDisplay = "Patrol";
         else if (playerDetected && distanceToPlayerActual > attackRange)
             currentStateDisplay = "Chase";
         else if (playerDetected && distanceToPlayerActual <= attackRange)
             currentStateDisplay = "Attack";
-        else if (!playerDetected && (takeDamage || Time.time - lastSeenPlayerTime <= lostPlayerTimeout))
-            currentStateDisplay = "Search";
+        else if (!playerDetected && (takeDamage || playerHeardNow ||
+                 Time.time - lastSeenPlayerTime <= lostPlayerTimeout ||
+                 Time.time - lastHeardSoundTime <= soundAlertDuration))
+            currentStateDisplay = "Investigate";
         else
             currentStateDisplay = "Patrol"; // Fallback
 
@@ -540,7 +584,77 @@ public class EnemyAI : MonoBehaviour
         {
             distanceToPlayer = distanceToPlayerActual;
             playerInSight = playerDetected;
+            playerHeard = playerHeardNow;
             timeSinceLastSeen = Time.time - lastSeenPlayerTime;
+            timeSinceLastHeard = Time.time - lastHeardSoundTime;
+        }
+    }
+
+    void UpdateAnimations()
+    {
+        if (animator == null) return;
+
+        // Check for death first - this overrides all other animations
+        EnemyHealth enemyHealth = GetComponent<EnemyHealth>();
+        if (enemyHealth != null && enemyHealth.IsDead())
+        {
+            HandleDeathAnimation();
+            return; // Don't update other animations if dead
+        }
+
+        // Update movement speed
+        float currentSpeed = navAgent.velocity.magnitude;
+        if (HasParameter(speedParameterName))
+        {
+            animator.SetFloat(speedHash, currentSpeed);
+        }
+
+        // Update attacking state
+        if (HasParameter(isAttackingParameterName))
+        {
+            animator.SetBool(isAttackingHash, isAttacking);
+        }
+    }
+
+    void HandleDeathAnimation()
+    {
+        // Trigger death animation only once
+        if (!hasTriggeredDeath)
+        {
+            hasTriggeredDeath = true;
+
+            // Trigger the death animation
+            if (HasParameter(deathTriggerParameterName))
+            {
+                animator.SetTrigger(deathTriggerHash);
+            }
+
+            // Set dead state
+            if (HasParameter(isDeadParameterName))
+            {
+                animator.SetBool(isDeadHash, true);
+            }
+
+            // Stop all movement
+            if (navAgent != null)
+            {
+                navAgent.isStopped = true;
+                navAgent.velocity = Vector3.zero;
+            }
+
+            // Set speed to 0
+            if (HasParameter(speedParameterName))
+            {
+                animator.SetFloat(speedHash, 0f);
+            }
+
+            // Stop attacking
+            if (HasParameter(isAttackingParameterName))
+            {
+                animator.SetBool(isAttackingHash, false);
+            }
+
+            Debug.Log($"{gameObject.name} triggered death animation");
         }
     }
 
@@ -551,6 +665,15 @@ public class EnemyAI : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, attackRange);
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, sightRange);
+
+        // Sound detection ranges
+        if (showSoundRanges)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(transform.position, footstepHearingRange);
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(transform.position, gunshotHearingRange);
+        }
 
         // Field of view
         if (showDebug)
@@ -572,7 +695,7 @@ public class EnemyAI : MonoBehaviour
 
     public bool IsPlayerDetected()
     {
-        return Time.time - lastSeenPlayerTime < 1f;
+        return Time.time - lastSeenPlayerTime < 1f || Time.time - lastHeardSoundTime < 1f;
     }
 
     public string GetCurrentState()
