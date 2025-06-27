@@ -35,6 +35,13 @@ public class EnemyAI : MonoBehaviour
     public AudioSource audioSource;
     public AudioClip shootSound;
 
+    [Header("Animation Settings")]
+    public Animator animator; // Drag the child model's animator here
+    [SerializeField] private string speedParameterName = "Speed";
+    [SerializeField] private string isAttackingParameterName = "IsAttacking";
+    [SerializeField] private string isDeadParameterName = "IsDead";
+    [SerializeField] private string deathTriggerParameterName = "Death"; // Trigger for death animation
+
     [Header("Debug")]
     public bool showDebug = true;
 
@@ -58,6 +65,13 @@ public class EnemyAI : MonoBehaviour
     private float lastShotTime = 0f;
     private bool hasEverSeenPlayer = false; // New: track if we've ever seen the player
 
+    // Animation parameter hashes for performance
+    private int speedHash;
+    private int isAttackingHash;
+    private int isDeadHash;
+    private int deathTriggerHash;
+    private bool hasTriggeredDeath = false; // Prevent multiple death triggers
+
     void Start()
     {
         navAgent = GetComponent<NavMeshAgent>();
@@ -69,13 +83,77 @@ public class EnemyAI : MonoBehaviour
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
+        // Auto-find animator if not assigned
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
+
+        // Initialize animation parameters
+        InitializeAnimationParameters();
+
         if (showDebug)
-            Debug.Log("Enemy AI initialized with NavMesh");
+            Debug.Log("Enemy AI initialized with NavMesh and Animation support");
+    }
+
+    void InitializeAnimationParameters()
+    {
+        if (animator == null)
+        {
+            Debug.LogWarning($"No Animator found on {gameObject.name} or its children. Animation features disabled.");
+            return;
+        }
+
+        // Cache parameter hashes for better performance
+        speedHash = Animator.StringToHash(speedParameterName);
+        isAttackingHash = Animator.StringToHash(isAttackingParameterName);
+        isDeadHash = Animator.StringToHash(isDeadParameterName);
+        deathTriggerHash = Animator.StringToHash(deathTriggerParameterName);
+
+        // Validate that parameters exist
+        ValidateAnimatorParameters();
+    }
+
+    void ValidateAnimatorParameters()
+    {
+        if (animator == null) return;
+
+        bool hasSpeedParam = HasParameter(speedParameterName);
+        bool hasAttackingParam = HasParameter(isAttackingParameterName);
+        bool hasDeadParam = HasParameter(isDeadParameterName);
+        bool hasDeathTriggerParam = HasParameter(deathTriggerParameterName);
+
+        if (!hasSpeedParam)
+            Debug.LogWarning($"Parameter '{speedParameterName}' not found in animator controller!");
+        if (!hasAttackingParam)
+            Debug.LogWarning($"Parameter '{isAttackingParameterName}' not found in animator controller!");
+        if (!hasDeadParam)
+            Debug.LogWarning($"Parameter '{isDeadParameterName}' not found in animator controller!");
+        if (!hasDeathTriggerParam)
+            Debug.LogWarning($"Parameter '{deathTriggerParameterName}' not found in animator controller!");
+    }
+
+    bool HasParameter(string paramName)
+    {
+        if (animator == null) return false;
+
+        foreach (AnimatorControllerParameter param in animator.parameters)
+        {
+            if (param.name == paramName)
+                return true;
+        }
+        return false;
     }
 
     void Update()
     {
         if (player == null) return;
+
+        // Don't update AI logic if dead
+        EnemyHealth enemyHealth = GetComponent<EnemyHealth>();
+        if (enemyHealth != null && enemyHealth.IsDead())
+        {
+            UpdateAnimations(); // Still update animations for death
+            return;
+        }
 
         // Check player detection
         bool playerInSightRange = CanSeePlayer();
@@ -126,6 +204,77 @@ public class EnemyAI : MonoBehaviour
             if (showDebug && Time.frameCount % 60 == 0)
                 Debug.Log("Fallback state - going to patrol");
             Patroling();
+        }
+
+        // Update animations
+        UpdateAnimations();
+    }
+
+    void UpdateAnimations()
+    {
+        if (animator == null) return;
+
+        // Check for death first - this overrides all other animations
+        EnemyHealth enemyHealth = GetComponent<EnemyHealth>();
+        if (enemyHealth != null && enemyHealth.IsDead())
+        {
+            HandleDeathAnimation();
+            return; // Don't update other animations if dead
+        }
+
+        // Update movement speed
+        float currentSpeed = navAgent.velocity.magnitude;
+        if (HasParameter(speedParameterName))
+        {
+            animator.SetFloat(speedHash, currentSpeed);
+        }
+
+        // Update attacking state
+        if (HasParameter(isAttackingParameterName))
+        {
+            animator.SetBool(isAttackingHash, isAttacking);
+        }
+    }
+
+    void HandleDeathAnimation()
+    {
+        // Trigger death animation only once
+        if (!hasTriggeredDeath)
+        {
+            hasTriggeredDeath = true;
+
+            // Trigger the death animation
+            if (HasParameter(deathTriggerParameterName))
+            {
+                animator.SetTrigger(deathTriggerHash);
+            }
+
+            // Set dead state
+            if (HasParameter(isDeadParameterName))
+            {
+                animator.SetBool(isDeadHash, true);
+            }
+
+            // Stop all movement
+            if (navAgent != null)
+            {
+                navAgent.isStopped = true;
+                navAgent.velocity = Vector3.zero;
+            }
+
+            // Set speed to 0
+            if (HasParameter(speedParameterName))
+            {
+                animator.SetFloat(speedHash, 0f);
+            }
+
+            // Stop attacking
+            if (HasParameter(isAttackingParameterName))
+            {
+                animator.SetBool(isAttackingHash, false);
+            }
+
+            Debug.Log($"{gameObject.name} triggered death animation");
         }
     }
 
@@ -414,7 +563,7 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // Public methods
+    // Public methods for animation system integration
     public void ForceDetectPlayer()
     {
         takeDamage = true;
@@ -424,5 +573,29 @@ public class EnemyAI : MonoBehaviour
     public bool IsPlayerDetected()
     {
         return Time.time - lastSeenPlayerTime < 1f;
+    }
+
+    public string GetCurrentState()
+    {
+        return currentStateDisplay;
+    }
+
+    public bool IsCurrentlyAttacking()
+    {
+        return isAttacking;
+    }
+
+    public float GetMovementSpeed()
+    {
+        return navAgent != null ? navAgent.velocity.magnitude : 0f;
+    }
+
+    // Method to manually trigger death animation (useful for testing)
+    public void TriggerDeathAnimation()
+    {
+        if (!hasTriggeredDeath && animator != null)
+        {
+            HandleDeathAnimation();
+        }
     }
 }
